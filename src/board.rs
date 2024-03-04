@@ -1,7 +1,8 @@
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Copy, Clone)]
-struct U2(bool, bool);
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct U2(bool, bool);
 
 impl U2 {
     fn from_char(arg: char) -> U2 {
@@ -68,12 +69,12 @@ pub enum Direction {
     Vertical,
 }
 use Direction::*;
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Board {
     width: u8,
     height: u8,
     fences: Vec<Option<bool>>,
-    numbers: Vec<Option<U2>>,
+    task: Vec<Option<U2>>,
 }
 
 impl Board {
@@ -82,7 +83,7 @@ impl Board {
             width,
             height,
             fences: vec![None; (2 * width * height + width + height) as usize],
-            numbers: vec![None; (width * height) as usize],
+            task: vec![None; (width * height) as usize],
         }
     }
     pub fn get_fence(&self, direction: Direction, row: u8, col: u8) -> Option<bool> {
@@ -94,6 +95,16 @@ impl Board {
             Horizontal => row * self.width + col,
             Vertical => self.width * (self.height + 1) + (row * (self.width + 1) + col),
         } as usize]
+    }
+    pub fn set_fence(&mut self, direction: Direction, row: u8, col: u8, fence: Option<bool>) {
+        match direction {
+            Horizontal => assert!(row <= self.height && col < self.width),
+            Vertical => assert!(row < self.height && col <= self.width),
+        };
+        self.fences[match direction {
+            Horizontal => row * self.width + col,
+            Vertical => self.width * (self.height + 1) + (row * (self.width + 1) + col),
+        } as usize] = fence
     }
     pub fn get_fence_char(&self, direction: Direction, row: u8, col: u8) -> char {
         let x = self.get_fence(direction, row, col);
@@ -108,8 +119,18 @@ impl Board {
             None => ' ',
         }
     }
-    pub fn set_numbers(&mut self, numbers: &str) {
-        self.numbers = numbers
+    pub fn tasks(&self) -> String {
+        self.task
+            .iter()
+            .map(|x| match x {
+                Some(x) => x.to_char().to_string(),
+                None => " ".to_string(),
+            })
+            .collect::<Vec<_>>()
+            .join("")
+    }
+    pub fn set_numbers(&mut self, task: &str) {
+        self.task = task
             .chars()
             .map(|x| {
                 if x == ' ' {
@@ -130,6 +151,32 @@ impl Board {
                 _ => None,
             })
             .collect()
+    }
+    pub fn get_solution(&self) -> String {
+        self.fences
+            .iter()
+            .map(|x| match x {
+                Some(true) => "y",
+                Some(false) => "n",
+                None => "u",
+            } as &str)
+            .collect::<Vec<_>>()
+            .join("")
+    }
+    pub fn height(&self) -> u8 {
+        self.height
+    }
+    pub fn width(&self) -> u8 {
+        self.width
+    }
+    pub fn get_task_neighbors(&self, row: u8, col: u8) -> Neighbors {
+        assert!(row < self.width && col < self.height);
+        return [
+            self.get_fence(Horizontal, row, col),
+            self.get_fence(Horizontal, row + 1, col),
+            self.get_fence(Vertical, row, col),
+            self.get_fence(Vertical, row, col + 1),
+        ];
     }
     pub fn get_dot_neighbors(&self, row: u8, col: u8) -> Neighbors {
         let mut n = [None; 4];
@@ -180,7 +227,7 @@ impl Board {
     pub fn result(&self) -> Option<bool> {
         unimplemented!();
     }
-    fn get_number_fences(&self, row:u8, col: u8) -> Neighbors {
+    fn get_number_fences(&self, row: u8, col: u8) -> Neighbors {
         [
             self.get_fence(Horizontal, row, col),
             self.get_fence(Vertical, row, col),
@@ -203,7 +250,7 @@ impl fmt::Display for Board {
                     f,
                     "{}{}",
                     self.get_fence_char(Vertical, row, col),
-                    self.numbers[(row * self.width + col) as usize]
+                    self.task[(row * self.width + col) as usize]
                         .map_or_else(|| ' ', |x| x.to_char())
                 )?;
             }
