@@ -171,12 +171,12 @@ impl Board {
     }
     pub fn get_task_neighbors(&self, row: u8, col: u8) -> Neighbors {
         assert!(row < self.width && col < self.height);
-        return [
+        [
             self.get_fence(Horizontal, row, col),
             self.get_fence(Horizontal, row + 1, col),
             self.get_fence(Vertical, row, col),
             self.get_fence(Vertical, row, col + 1),
-        ];
+        ]
     }
     pub fn get_dot_neighbors(&self, row: u8, col: u8) -> Neighbors {
         let mut n = [None; 4];
@@ -226,14 +226,6 @@ impl Board {
     }
     pub fn result(&self) -> Option<bool> {
         unimplemented!();
-    }
-    fn get_number_fences(&self, row: u8, col: u8) -> Neighbors {
-        [
-            self.get_fence(Horizontal, row, col),
-            self.get_fence(Vertical, row, col),
-            self.get_fence(Horizontal, row + 1, col),
-            self.get_fence(Vertical, row, col + 1),
-        ]
     }
 }
 
