@@ -1,54 +1,6 @@
-use either::Either;
+use crate::grid::Grid;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
-pub struct U2(bool, bool);
-
-impl U2 {
-    fn from_char(arg: char) -> U2 {
-        match arg {
-            '0' => U2(false, false),
-            '1' => U2(false, true),
-            '2' => U2(true, false),
-            '3' => U2(true, true),
-            _ => unreachable!(),
-        }
-    }
-    fn to_char(&self) -> char {
-        match self {
-            U2(false, false) => '0',
-            U2(false, true) => '1',
-            U2(true, false) => '2',
-            U2(true, true) => '3',
-        }
-    }
-}
-impl From<U2> for u8 {
-    fn from(arg: U2) -> Self {
-        match arg {
-            U2(false, false) => 0,
-            U2(false, true) => 1,
-            U2(true, false) => 2,
-            U2(true, true) => 3,
-        }
-    }
-}
-
-impl From<u8> for U2 {
-    fn from(arg: u8) -> Self {
-        assert!(arg < 4);
-        match arg {
-            0 => U2(false, false),
-            1 => U2(false, true),
-            2 => U2(true, false),
-            3 => U2(true, true),
-            _ => unreachable!(),
-        }
-    }
-}
-
-type Neighbors = [Option<bool>; 4];
+use std::{fmt, usize};
 
 const BOX_HORIZONTAL: char = '─';
 const BOX_VERTICAL: char = '│';
@@ -64,123 +16,122 @@ const BOX_VERTICAL_HORIZONTAL: char = '┼';
 const DOT: char = '∙';
 const CROSS: char = '×';
 
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Default)]
+pub struct U2(Option<[bool; 2]>);
+
+impl From<char> for U2 {
+    fn from(value: char) -> Self {
+        match value {
+            '0' => U2(Some([false; 2])),
+            '1' => U2(Some([false, true])),
+            '2' => U2(Some([true, false])),
+            '3' => U2(Some([true, true])),
+            ' ' => U2(None),
+            _ => unreachable!(),
+        }
+    }
+}
+impl From<U2> for char {
+    fn from(value: U2) -> char {
+        match value {
+            U2(Some([false, false])) => '0',
+            U2(Some([false, true])) => '1',
+            U2(Some([true, false])) => '2',
+            U2(Some([true, true])) => '3',
+            U2(None) => ' ',
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Copy)]
+pub struct Fence(Option<bool>);
+impl From<char> for Fence {
+    fn from(value: char) -> Self {
+        match value {
+            'y' => Fence(Some(true)),
+            'n' => Fence(Some(false)),
+            'u' => Fence(None),
+            _ => unreachable!(),
+        }
+    }
+}
+impl From<Fence> for char {
+    fn from(value: Fence) -> char {
+        match value.0 {
+            Some(true) => 'y',
+            Some(false) => 'n',
+            None => 'u',
+        }
+    }
+}
+
+type Neighbors = [Fence; 4];
+
 #[derive(Copy, Clone, Debug)]
 pub enum Direction {
     Horizontal,
     Vertical,
 }
+
 use Direction::*;
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct Board {
-    width: u8,
-    height: u8,
-    fences: Vec<Option<bool>>,
-    task: Vec<Option<U2>>,
+    fences: [Grid<Fence>; 2],
+    task: Grid<U2>,
 }
 
 impl Board {
-    pub fn new(width: u8, height: u8) -> Self {
+    pub fn from_task_string(task: &str, width: usize) -> Self {
+        let task = Grid::<U2>::from_string(task, width);
         Board {
-            width,
-            height,
-            fences: vec![None; (2 * width * height + width + height) as usize],
-            task: vec![None; (width * height) as usize],
+            fences: [
+                Grid::<Fence>::default(task.width(), task.height() + 1),
+                Grid::<Fence>::default(task.width() + 1, task.height()),
+            ],
+            task,
         }
     }
-    pub fn get_fence(&self, direction: Direction, row: u8, col: u8) -> Option<bool> {
-        match direction {
-            Horizontal => assert!(row <= self.height && col < self.width),
-            Vertical => assert!(row < self.height && col <= self.width),
-        };
-        self.fences[match direction {
-            Horizontal => row * self.width + col,
-            Vertical => self.width * (self.height + 1) + (row * (self.width + 1) + col),
-        } as usize]
+    pub fn width(&self) -> usize {
+        self.task.width()
     }
-    pub fn set_fence(&mut self, direction: Direction, row: u8, col: u8, fence: Option<bool>) {
-        match direction {
-            Horizontal => assert!(row <= self.height && col < self.width),
-            Vertical => assert!(row < self.height && col <= self.width),
-        };
-        self.fences[match direction {
-            Horizontal => row * self.width + col,
-            Vertical => self.width * (self.height + 1) + (row * (self.width + 1) + col),
-        } as usize] = fence
+    pub fn height(&self) -> usize {
+        self.task.height()
     }
-    pub fn get_fence_char(&self, direction: Direction, row: u8, col: u8) -> char {
+    pub fn get_fence(&self, direction: Direction, row: usize, col: usize) -> Fence {
+        self.fences[usize::from(matches!(direction, Horizontal))][(row, col)]
+    }
+    pub fn get_fence_char(&self, direction: Direction, row: usize, col: usize) -> char {
         let x = self.get_fence(direction, row, col);
         // println!("{direction:?}, {row}, {col}, {:?}", x);
         let c = match direction {
             Horizontal => BOX_HORIZONTAL,
             Vertical => BOX_VERTICAL,
         };
-        match x {
+        match x.0 {
             Some(true) => c,
             Some(false) => CROSS,
             None => ' ',
         }
     }
-    pub fn tasks(&self) -> String {
-        self.task
-            .iter()
-            .map(|x| match x {
-                Some(x) => x.to_char(),
-                None => ' ',
-            })
-            .enumerate()
-            .flat_map(|(i, c)| {
-                if i % self.width as usize == 0 {
-                    Either::Left(['\n', c].into_iter())
-                } else {
-                    Either::Right(std::iter::once(c))
-                }
-            })
-            .skip(1)
-            .collect::<String>()
-    }
-    pub fn set_numbers(&mut self, task: &str) {
-        self.task = task
-            .chars()
-            .map(|x| {
-                if x == ' ' {
-                    None
-                } else {
-                    Some(U2::from_char(x))
-                }
-            })
-            .collect();
-    }
     pub fn set_solution(&mut self, solution: &str) {
-        self.fences = solution
-            .chars()
-            .filter_map(|x| match x {
-                'y' => Some(Some(true)),
-                'n' => Some(Some(false)),
-                'u' => Some(None),
-                _ => None,
-            })
-            .collect()
+        let (width, height) = (self.width(), self.height());
+        let b = width * (height + 1);
+        for (i, c) in solution.chars().enumerate() {
+            let (dir, row, col) = if i < b {
+                (0, i % width, i / width)
+            } else {
+                (1, (i - b) % (width + 1), (i - b) / (width + 1))
+            };
+            self.fences[dir][(row, col)] = c.into();
+        }
     }
-    pub fn get_solution(&self) -> String {
-        self.fences
-            .iter()
-            .map(|x| match x {
-                Some(true) => "y",
-                Some(false) => "n",
-                None => "u",
-            } as &str)
-            .collect::<Vec<_>>()
-            .join("")
-    }
-    pub fn height(&self) -> u8 {
-        self.height
-    }
-    pub fn width(&self) -> u8 {
-        self.width
+    /*
+    pub fn tasks(&self) -> &Grid<U2> {
+        &self.task
     }
     pub fn get_task_neighbors(&self, idx: u8) -> Neighbors {
-        let (row, col) = (idx as u8 / self.width, idx as u8 % self.width);
-        assert!(row < self.width && col < self.height);
+        let (row, col) = (idx as u8 / self.width(), idx as u8 % self.width);
+        assert!(row < self.width() && col < self.height);
         [
             self.get_fence(Horizontal, row, col),
             self.get_fence(Horizontal, row + 1, col),
@@ -188,12 +139,18 @@ impl Board {
             self.get_fence(Vertical, row, col + 1),
         ]
     }
-    pub fn get_dot_neighbors(&self, row: u8, col: u8) -> Neighbors {
-        let mut n = [None; 4];
-        if col < self.width {
+    */
+    pub fn get_solution(&self) -> String {
+        self.fences
+            .iter()
+            .fold(String::new(), |a, x| a + "\n" + &x.to_string())
+    }
+    pub fn get_dot_neighbors(&self, row: usize, col: usize) -> Neighbors {
+        let mut n = [Fence(None); 4];
+        if col < self.width() {
             n[0] = self.get_fence(Horizontal, row, col);
         }
-        if row < self.height {
+        if row < self.height() {
             n[1] = self.get_fence(Vertical, row, col)
         }
         if col > 0 {
@@ -202,12 +159,12 @@ impl Board {
         if row > 0 {
             n[3] = self.get_fence(Vertical, row - 1, col)
         }
-        return n;
+        n
     }
-    pub fn get_dot_char(&self, row: u8, col: u8) -> char {
+    pub fn get_dot_char(&self, row: usize, col: usize) -> char {
         let n = self
             .get_dot_neighbors(row, col)
-            .map(|v| v.is_some_and(|x| x));
+            .map(|v| v.0.is_some_and(|x| x));
         if n == [true; 4] {
             BOX_VERTICAL_HORIZONTAL
         } else if n == [true, true, false, false] {
@@ -241,31 +198,30 @@ impl Board {
 
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for row in 0..self.height {
-            for col in 0..self.width {
+        for row in 0..self.height() {
+            for col in 0..self.width() {
                 write!(f, "{}", self.get_dot_char(row, col))?;
                 write!(f, "{}", self.get_fence_char(Horizontal, row, col))?;
             }
-            write!(f, "{}\n", self.get_dot_char(row, self.width))?;
-            for col in 0..self.width {
+            write!(f, "{}\n", self.get_dot_char(row, self.width()))?;
+            for col in 0..self.width() {
                 write!(
                     f,
                     "{}{}",
                     self.get_fence_char(Vertical, row, col),
-                    self.task[(row * self.width + col) as usize]
-                        .map_or_else(|| ' ', |x| x.to_char())
+                    char::from(self.task[(row, col)])
                 )?;
             }
-            write!(f, "{}\n", self.get_fence_char(Vertical, row, self.width))?;
+            write!(f, "{}\n", self.get_fence_char(Vertical, row, self.width()))?;
         }
-        for col in 0..self.width {
+        for col in 0..self.width() {
             write!(
                 f,
                 "{}{}",
-                self.get_dot_char(self.height, col),
-                self.get_fence_char(Horizontal, self.height, col)
+                self.get_dot_char(self.height(), col),
+                self.get_fence_char(Horizontal, self.height(), col)
             )?;
         }
-        write!(f, "{}\n", self.get_dot_char(self.height, self.width))
+        write!(f, "{}\n", self.get_dot_char(self.height(), self.width()))
     }
 }
