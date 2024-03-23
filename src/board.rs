@@ -1,3 +1,4 @@
+use either::Either;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -123,11 +124,19 @@ impl Board {
         self.task
             .iter()
             .map(|x| match x {
-                Some(x) => x.to_char().to_string(),
-                None => " ".to_string(),
+                Some(x) => x.to_char(),
+                None => ' ',
             })
-            .collect::<Vec<_>>()
-            .join("")
+            .enumerate()
+            .flat_map(|(i, c)| {
+                if i % self.width as usize == 0 {
+                    Either::Left(['\n', c].into_iter())
+                } else {
+                    Either::Right(std::iter::once(c))
+                }
+            })
+            .skip(1)
+            .collect::<String>()
     }
     pub fn set_numbers(&mut self, task: &str) {
         self.task = task
@@ -169,7 +178,8 @@ impl Board {
     pub fn width(&self) -> u8 {
         self.width
     }
-    pub fn get_task_neighbors(&self, row: u8, col: u8) -> Neighbors {
+    pub fn get_task_neighbors(&self, idx: u8) -> Neighbors {
+        let (row, col) = (idx as u8 / self.width, idx as u8 % self.width);
         assert!(row < self.width && col < self.height);
         [
             self.get_fence(Horizontal, row, col),

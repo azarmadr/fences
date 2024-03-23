@@ -1,0 +1,21 @@
+- task: '0'
+  fences: uuuu
+  solution: nnnn
+- task: '1'
+  fences: yuuu
+  solution: ynnn
+- task: '3'
+  fences: uuun
+  solution: yyyn
+- task: '3'
+  fences: uuuu
+  solution: yuyu
+  corner: true
+- task: '33'
+  fences: uuuuuuu
+  solution: uuuuyyy
+- task: |-
+    3 
+     3
+  fences: uuuuuu_uuuuuu
+  solution: yuuuuy_yuuuuy

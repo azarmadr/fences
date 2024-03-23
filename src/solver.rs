@@ -1,7 +1,7 @@
 use crate::{Board, Direction::*};
 use serde::{Deserialize, Serialize};
 use serde_yaml;
-use std::collections::HashSet;
+use std::{collections::HashSet, usize};
 
 fn rotate_string(input: &str, row: usize, col: usize) -> String {
     let mut output = String::with_capacity(input.len());
@@ -55,7 +55,7 @@ impl BoardRule {
             task: rotate_string(&self.task.replace("\n", ""), row, col),
             fences: rotate_fence(&self.fences, row, col),
             solution: rotate_fence(&self.solution, row, col),
-            rotation: self.rotation + if self.corner {1}else{0},
+            rotation: self.rotation + if self.corner { 1 } else { 0 },
             corner: self.corner,
         }
     }
@@ -79,8 +79,16 @@ impl BoardRule {
     fn apply(&self, board: &mut Board) {
         let tasks = board.tasks();
         let (width, height) = (board.width(), board.height());
+        let rows: Vec<&str> = tasks.split_terminator('\n').collect();
+        for row in rows.iter().enumerate() {
+            let matches = row.1.match_indices(&self.task).collect::<Vec<_>>();
+            if matches.len() > 0 {
+                println!("found {:?} in {row:?} at {matches:?}", self.task);
+            }
+        }
         tasks
             .chars()
+            .filter(|&c| c != '\n')
             .enumerate()
             .filter(|(idx, c)| {
                 (!self.corner
@@ -91,7 +99,7 @@ impl BoardRule {
             .for_each(|(idx, _c)| {
                 let (row, col) = (idx as u8 / width, idx as u8 % width);
                 let n = board
-                    .get_task_neighbors(row, col)
+                    .get_task_neighbors(idx as u8)
                     .map(|x| fence_to_char(x).to_string())
                     .join("");
 
@@ -118,7 +126,7 @@ impl BoardRule {
 
 pub fn solve(board: &mut Board) {
     let rules = BoardRule::read_rules_from_yaml("assets/rules.yml");
-    for rule in &rules {
-        dbg!(rule).apply(board)
+    for rule in dbg!(&rules) {
+        rule.apply(board)
     }
 }
