@@ -1,4 +1,4 @@
-use crate::{Board, Direction::*};
+use crate::Board;
 use serde::{Deserialize, Serialize};
 use serde_yaml;
 use std::{collections::HashSet, usize};
@@ -23,21 +23,6 @@ pub fn rotate_fence(f: &str, row: usize, col: usize) -> String {
         rotate_string(&f[0..col * (row + 1)], row + 1, col),
     )
 }
-fn char_to_fence(c: char) -> Option<bool> {
-    match c {
-        'y' => Some(true),
-        'n' => Some(false),
-        'u' => None,
-        _ => unreachable!(),
-    }
-}
-fn fence_to_char(fence: Option<bool>) -> char {
-    match fence {
-        Some(true) => 'y',
-        Some(false) => 'n',
-        None => 'u',
-    }
-}
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
 struct BoardRule {
     task: String,
@@ -50,7 +35,7 @@ struct BoardRule {
 }
 
 impl BoardRule {
-    fn rotate(&self, row: usize, col: usize) -> Self {
+    fn _rotate(&self, row: usize, col: usize) -> Self {
         Self {
             task: rotate_string(&self.task.replace("\n", ""), row, col),
             fences: rotate_fence(&self.fences, row, col),
@@ -59,7 +44,7 @@ impl BoardRule {
             corner: self.corner,
         }
     }
-    fn get_rotations(&self) -> Vec<Self> {
+    fn _get_rotations(&self) -> Vec<Self> {
         let (row, col) = (
             self.task.lines().count(),
             self.task.lines().last().unwrap().len(),
@@ -67,7 +52,7 @@ impl BoardRule {
         let mut ret = vec![self.clone()];
         let mut set = HashSet::from([self.clone()]);
         for _ in 1..4 {
-            let rot = ret.last().unwrap().rotate(row, col);
+            let rot = ret.last().unwrap()._rotate(row, col);
             if set.insert(rot.clone()) {
                 ret.push(rot)
             } else {
@@ -76,57 +61,82 @@ impl BoardRule {
         }
         ret
     }
-    fn apply(&self, board: &mut Board) {
-        let tasks = board.tasks();
-        let (width, height) = (board.width(), board.height());
-        let rows: Vec<&str> = tasks.split_terminator('\n').collect();
-        for row in rows.iter().enumerate() {
-            let matches = row.1.match_indices(&self.task).collect::<Vec<_>>();
-            if matches.len() > 0 {
-                println!("found {:?} in {row:?} at {matches:?}", self.task);
+    fn apply(&self, board: &mut Board) -> bool {
+        let rule_board = Board::from_task_lines(&self.task, Some(&self.fences.replace('_', "")));
+        let size = (rule_board.height(), rule_board.width());
+        let bounds = (board.height() - size.0, board.width() - size.1);
+        println!("Trying rule:\n{rule_board}");
+        let mut retain = false;
+        for row in 0..=bounds.1 {
+            for col in 0..=bounds.0 {
+                let idx = (row, col);
+                if self.corner
+                    && [(0, 0), (0, bounds.1), (bounds.0, 0), bounds][self.rotation] != idx
+                {
+                    continue;
+                }
+                let task_match = board
+                    .task()
+                    .subgrid_iter(idx, size)
+                    .zip(rule_board.task().subgrid_iter((0, 0), size))
+                    .all(|(a, b)| b.is_none() || a == b);
+                retain |= task_match;
+                if task_match
+                    && board.fences()[0]
+                        .subgrid_iter(idx, (size.0 + 1, size.1))
+                        .zip(rule_board.fences()[0].subgrid_iter((0, 0), (size.0 + 1, size.1)))
+                        .all(|(a, b)| b.is_none() || a == b)
+                    && board.fences()[1]
+                        .subgrid_iter(idx, (size.0, size.1 + 1))
+                        .zip(rule_board.fences()[1].subgrid_iter((0, 0), (size.0, size.1 + 1)))
+                        .all(|(a, b)| b.is_none() || a == b)
+                {
+                    let mut solution =
+                        Board::from_task_lines(&self.task, Some(&self.solution.replace('_', "")));
+                    println!(
+                        "{:?} {idx:?} {size:?} {bounds:?}",
+                        board.task().subgrid_iter(idx, size).collect::<Vec<_>>()
+                    );
+                    retain &= false;
+                    println!("match at ({row},{col})");
+                    board.fences_mut()[0]
+                        .subgrid_iter_mut(idx, (size.0 + 1, size.1))
+                        .zip(
+                            solution.fences_mut()[0].subgrid_iter_mut((0, 0), (size.0 + 1, size.1)),
+                        )
+                        .for_each(|(a, b)| {
+                            if !b.is_none() {
+                                *a = *b
+                            }
+                        });
+                    board.fences_mut()[1]
+                        .subgrid_iter_mut(idx, (size.0, size.1 + 1))
+                        .zip(
+                            solution.fences_mut()[1].subgrid_iter_mut((0, 0), (size.0, size.1 + 1)),
+                        )
+                        .for_each(|(a, b)| {
+                            if !b.is_none() {
+                                *a = *b
+                            }
+                        });
+                }
             }
         }
-        tasks
-            .chars()
-            .filter(|&c| c != '\n')
-            .enumerate()
-            .filter(|(idx, c)| {
-                (!self.corner
-                    || &[0, width - 1, width * height - 1, width * (height - 1)][self.rotation]
-                        == &(*idx as u8))
-                    && self.task == c.to_string()
-            })
-            .for_each(|(idx, _c)| {
-                let (row, col) = (idx as u8 / width, idx as u8 % width);
-                let n = board
-                    .get_task_neighbors(idx as u8)
-                    .map(|x| fence_to_char(x).to_string())
-                    .join("");
-
-                if n == self.fences {
-                    self.solution
-                        .chars()
-                        .enumerate()
-                        .for_each(|(i, c)| match i {
-                            0 => board.set_fence(Horizontal, row, col, char_to_fence(c)),
-                            1 => board.set_fence(Horizontal, row + 1, col, char_to_fence(c)),
-                            2 => board.set_fence(Vertical, row, col, char_to_fence(c)),
-                            3 => board.set_fence(Vertical, row, col + 1, char_to_fence(c)),
-                            _ => unreachable!(),
-                        })
-                }
-            })
+        retain
     }
     fn read_rules_from_yaml(file: &str) -> Vec<Self> {
         let f = std::fs::File::open(file).expect("Couldn't open file");
         let rules: Vec<BoardRule> = serde_yaml::from_reader(f).expect("Couldn't obtain rules");
-        rules.iter().flat_map(|x| x.get_rotations()).collect()
+        // rules.iter().flat_map(|x| x.get_rotations()).collect()
+        rules
     }
 }
 
 pub fn solve(board: &mut Board) {
-    let rules = BoardRule::read_rules_from_yaml("assets/rules.yml");
-    for rule in dbg!(&rules) {
-        rule.apply(board)
+    let mut rules = BoardRule::read_rules_from_yaml("assets/rules.yml");
+
+    for _ in 0..3 {
+        println!("Rules retained:{}", rules.len());
+        rules.retain(|x| x.apply(board));
     }
 }

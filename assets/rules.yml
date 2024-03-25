@@ -14,6 +14,15 @@
 - task: '33'
   fences: uuuuuuu
   solution: uuuuyyy
+- task: "  \n  "
+  fences: uu_yu_uu_uyu_uuu
+  solution: uuunuu_uuuunu
+- task: "  \n  "
+  fences: uuyyuu_uuuuuu
+  solution: uuuuuu_unuunu
+- task: " 3\n0 "
+  fences: uuuuuu_uuuuuu
+  solution: uuuyuu_uyuuuu
 - task: |-
     3 
      3
