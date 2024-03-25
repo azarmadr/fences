@@ -24,6 +24,18 @@ impl<T: Clone> Grid<T> {
             }
         }
     }
+    pub fn rotate(&self) -> Self {
+        let mut ret = vec![vec![]; self.width()];
+        for row in self.0.iter().rev() {
+            for (c, val) in row.iter().enumerate() {
+                ret[c].push(val.clone());
+            }
+        }
+        Grid(ret)
+    }
+    pub fn clone(&self) -> Self {
+        Grid(self.0.clone())
+    }
 }
 
 impl<T> Grid<T>
@@ -59,7 +71,9 @@ where
                     .map(|x| char::from(x.clone()))
                     .chain(std::iter::once('\n'))
             })
-            .collect()
+            .collect::<String>()
+            .trim_end()
+            .to_string()
     }
 }
 
@@ -113,6 +127,9 @@ impl<T> Grid<T> {
     #[inline]
     pub fn height(&self) -> usize {
         self.0.len()
+    }
+    pub fn size(&self) -> (usize, usize) {
+        (self.height(), self.width())
     }
 
     pub fn subgrid_iter_mut(
@@ -236,5 +253,28 @@ impl<T> Index<(usize, usize)> for Grid<T> {
 impl<T> IndexMut<(usize, usize)> for Grid<T> {
     fn index_mut(&mut self, (row, col): (usize, usize)) -> &mut Self::Output {
         &mut self.0[row][col]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Grid;
+    #[test]
+    fn rotation_works() {
+        let grid = Grid(vec![vec![0, 1], vec![2, 3]]);
+        let r_grid = grid.rotate();
+
+        assert_eq!(2, r_grid[(0, 0)]);
+        assert_eq!(0, r_grid[(0, 1)]);
+        assert_eq!(3, r_grid[(1, 0)]);
+        assert_eq!(1, r_grid[(1, 1)]);
+    }
+    #[test]
+    fn rotation_works1() {
+        let grid = Grid(vec![vec![0, 1]]);
+        let r_grid = grid.rotate();
+
+        assert_eq!(0, r_grid[(0, 0)]);
+        assert_eq!(1, r_grid[(1, 0)]);
     }
 }

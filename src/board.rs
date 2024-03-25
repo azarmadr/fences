@@ -23,6 +23,12 @@ type Neighbors = [Fence; 4];
 pub enum Direction {
     Horizontal,
     Vertical,
+    /*
+    Up,
+    Down,
+    Right,
+    Left
+    */
 }
 
 use Direction::*;
@@ -34,9 +40,19 @@ pub struct Board {
     task: Grid<U2>,
 }
 
-type Fences = [Grid<Fence>; 2];
+pub type Fences = [Grid<Fence>; 2];
+pub type Task = Grid<U2>;
 
 impl Board {
+    pub fn print(task: &Task, fences: &Fences) {
+        print!(
+            "{}",
+            Self {
+                task: task.clone(),
+                fences: [fences[0].clone(), fences[1].clone()]
+            }
+        )
+    }
     pub fn from_task_string(width: usize, task: &str, solution: Option<&str>) -> Self {
         let task = Grid::<U2>::from_string(width, task);
         let (width, height) = (task.width(), task.height());
@@ -84,6 +100,9 @@ impl Board {
             };
             self.fences[dir][(row, col)] = c.into();
         }
+    }
+    pub fn size(&self) -> (usize, usize) {
+        self.task.size()
     }
     pub fn width(&self) -> usize {
         self.task.width()
@@ -185,7 +204,7 @@ impl fmt::Display for Board {
                     f,
                     "{}{}",
                     self.get_fence_char(Vertical, row, col),
-                    char::from(self.task[(row, col)])
+                    char::from(self.task[(row, col)].clone())
                 )?;
             }
             write!(f, "{}\n", self.get_fence_char(Vertical, row, self.width()))?;

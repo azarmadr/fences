@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(PartialEq, Copy, Clone, Serialize, Deserialize, Default)]
+#[derive(PartialEq, Clone, Serialize, Deserialize, Default)]
 pub struct U2(Option<[bool; 2]>);
 
 impl std::ops::Deref for U2 {
@@ -14,7 +14,9 @@ impl std::ops::Deref for U2 {
 
 impl fmt::Debug for U2 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("U2").field(&char::from(*self)).finish()
+        f.debug_tuple("U2")
+            .field(&char::from(self.clone()))
+            .finish()
     }
 }
 
@@ -43,7 +45,7 @@ impl From<U2> for char {
     }
 }
 
-#[derive(Clone, Default, Copy, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub struct Fence(Option<bool>);
 
 impl From<char> for Fence {
