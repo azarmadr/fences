@@ -1,56 +1,131 @@
-use std::ops::IndexMut;
-
-use std::ops::Index;
-
+use either::Either;
 use std;
+use std::ops::Index;
+use std::ops::IndexMut;
 
 #[derive(Debug)]
 struct _Idx(usize, usize);
 
-type GridV<T> = Vec<Vec<T>>;
 #[derive(Debug)]
-pub struct Grid<T>(Vec<Vec<T>>);
-
-impl<T: Default + Clone> Grid<T> {
-    pub fn default(width: usize, height: usize) -> Self {
-        Grid(vec![vec![T::default(); width]; height])
-    }
+pub struct Grid<T> {
+    data: Vec<T>,
+    rows: usize,
 }
+
+impl<T> Grid<T> {
+    pub fn new(rows: usize, cols: usize) -> Self
+    where
+        T: Default,
+    {
+        let mut data = Vec::new();
+        data.resize_with(rows.checked_mul(cols).unwrap(), T::default);
+        Grid { rows, data }
+    }
+
+    #[inline]
+    pub fn width(&self) -> usize {
+        self.data.len() / self.rows
+    }
+    #[inline]
+    pub fn height(&self) -> usize {
+        self.rows
+    }
+    pub fn size(&self) -> (usize, usize) {
+        (self.rows, self.width())
+    }
+
+    pub fn subgrid_iter_mut(
+        &mut self,
+        idx: (usize, usize),
+        size: (usize, usize),
+    ) -> impl Iterator<Item = &mut T> {
+        let bounds = (idx.0 + size.0, idx.1 + size.1);
+        let size = self.width();
+        let is_inside = move |i| {
+            i / size >= idx.0 && i / size < bounds.0 && i % size >= idx.1 && i % size < bounds.1
+        };
+        self.data
+            .iter_mut()
+            .enumerate()
+            .filter_map(move |(i, v)| if is_inside(i) { Some(v) } else { None })
+    }
+    pub fn subgrid_iter(
+        &self,
+        idx: (usize, usize),
+        size: (usize, usize),
+    ) -> impl Iterator<Item = &T> {
+        let bounds = (idx.0 + size.0, idx.1 + size.1);
+        let size = self.width();
+        let is_inside = move |i| {
+            i / size >= idx.0 && i / size < bounds.0 && i % size >= idx.1 && i % size < bounds.1
+        };
+        self.data
+            .iter()
+            .enumerate()
+            .filter_map(move |(i, v)| if is_inside(i) { Some(v) } else { None })
+    }
+    /*
+    pub fn iter_subgrids(
+        &self,
+        subgrid_width: usize,
+        subgrid_height: usize,
+        corners: bool,
+    ) -> SubGridIterator<T> {
+        SubGridIterator {
+            grid: &self.data,
+            subgrid_width,
+            subgrid_height,
+            corners,
+            current_row: 0,
+            current_col: 0,
+        }
+    }
+    */
+}
+
 impl<T: Clone> Grid<T> {
+    /*
     pub fn update_subgrid(&mut self, idx: (usize, usize), new_subgrid: &Grid<T>) {
-        for (i, row) in new_subgrid.0.iter().enumerate() {
+        for (i, row) in new_subgrid.data.iter().enumerate() {
             for (j, value) in row.into_iter().enumerate() {
-                self.0[idx.0 + i][idx.1 + j] = value.clone();
+                self.data[idx.0 + i][idx.1 + j] = value.clone();
             }
         }
     }
+    */
     pub fn rotate(&self) -> Self {
-        let mut ret = vec![vec![]; self.width()];
-        for row in self.0.iter().rev() {
-            for (c, val) in row.iter().enumerate() {
-                ret[c].push(val.clone());
+        let mut data = vec![];
+        let size = self.size();
+        let rows = self.data.len() / self.rows;
+        for col in 0..size.1 {
+            for row in (0..size.0).rev() {
+                data.push(self[(row, col)].clone())
             }
         }
-        Grid(ret)
+        Grid { data, rows }
     }
     pub fn clone(&self) -> Self {
-        Grid(self.0.clone())
+        Grid {
+            data: self.data.clone(),
+            rows: self.rows,
+        }
     }
 }
 
 impl<T> Grid<T>
 where
-    // Vec<T>: FromIterator<char>,
     T: From<char>,
     char: From<T>,
     T: Clone,
 {
     pub fn from_lines(text: &str) -> Self {
-        Grid(
-            text.lines()
-                .map(|x| x.chars().map(|x| T::from(x)).collect::<Vec<T>>())
-                .collect::<Vec<Vec<T>>>(),
-        )
+        Grid {
+            data: text
+                .lines()
+                .flat_map(|x| x.chars().map(|x| T::from(x)).collect::<Vec<T>>())
+                .collect::<Vec<T>>(),
+            rows: text.lines().count(),
+        }
     }
     pub fn from_string(width: usize, text: &str) -> Self {
         let mut result = String::with_capacity(text.len() + text.len() / width); // Rough estimate of the resulting string length
@@ -64,29 +139,33 @@ where
         Self::from_lines(&result)
     }
     pub fn to_string(&self) -> String {
-        self.0
+        self.data
             .iter()
-            .flat_map(|x| {
-                x.iter()
-                    .map(|x| char::from(x.clone()))
-                    .chain(std::iter::once('\n'))
+            .map(|x| char::from(x.clone()))
+            .enumerate()
+            .flat_map(|(i, c)| {
+                if i % self.width() == 0 {
+                    Either::Left(['\n', c].into_iter())
+                } else {
+                    Either::Right(std::iter::once(c))
+                }
             })
-            .collect::<String>()
-            .trim_end()
-            .to_string()
+            .skip(1)
+            .collect()
     }
 }
 
+/*
 impl<T> Grid<T>
 where
     T: PartialEq,
 {
     pub fn is_same(&self, other: &Grid<T>) -> bool {
-        if self.0.len() != other.0.len() {
+        if self.data.len() != other.data.len() {
             return false;
         }
 
-        for (row1, row2) in self.0.iter().zip(other.0.iter()) {
+        for (row1, row2) in self.data.iter().zip(other.data.iter()) {
             if row1.len() != row2.len() {
                 return false;
             }
@@ -100,11 +179,11 @@ where
         true
     }
     pub fn is_same_with_references(&self, other: &GridV<&T>) -> bool {
-        if self.0.len() != other.len() {
+        if self.data.len() != other.len() {
             return false;
         }
 
-        for (row1, row2) in self.0.iter().zip(other.iter()) {
+        for (row1, row2) in self.data.iter().zip(other.iter()) {
             if row1.len() != row2.len() {
                 return false;
             }
@@ -118,64 +197,7 @@ where
         true
     }
 }
-
-impl<T> Grid<T> {
-    #[inline]
-    pub fn width(&self) -> usize {
-        self.0[0].len()
-    }
-    #[inline]
-    pub fn height(&self) -> usize {
-        self.0.len()
-    }
-    pub fn size(&self) -> (usize, usize) {
-        (self.height(), self.width())
-    }
-
-    pub fn subgrid_iter_mut(
-        &mut self,
-        idx: (usize, usize),
-        size: (usize, usize),
-    ) -> impl Iterator<Item = &mut T> {
-        // if idx.0 + size.0 > self.width() || idx.1 + size.1 > self.height() {
-        // return false;
-        // }
-        self.0
-            .iter_mut()
-            .skip(idx.0)
-            .take(size.0)
-            .flat_map(move |x| x.iter_mut().skip(idx.1).take(size.1))
-    }
-    pub fn subgrid_iter(
-        &self,
-        idx: (usize, usize),
-        size: (usize, usize),
-    ) -> impl Iterator<Item = &T> {
-        // if idx.0 + size.0 > self.width() || idx.1 + size.1 > self.height() {
-        // return false;
-        // }
-        self.0
-            .iter()
-            .skip(idx.0)
-            .take(size.0)
-            .flat_map(move |x| x.iter().skip(idx.1).take(size.1))
-    }
-    pub fn iter_subgrids(
-        &self,
-        subgrid_width: usize,
-        subgrid_height: usize,
-        corners: bool,
-    ) -> SubGridIterator<T> {
-        SubGridIterator {
-            grid: &self.0,
-            subgrid_width,
-            subgrid_height,
-            corners,
-            current_row: 0,
-            current_col: 0,
-        }
-    }
-}
+*/
 
 // let grid = Grid(vec![
 //     vec![1, 2, 3, 4],
@@ -192,6 +214,7 @@ impl<T> Grid<T> {
 // while let Some(subgrid) = subgrid_iter.next() {
 //     println!("{:?}", subgrid);
 // }
+/*
 pub struct SubGridIterator<'a, T> {
     grid: &'a GridV<T>,
     subgrid_width: usize,
@@ -241,18 +264,20 @@ impl<'a, T> Iterator for SubGridIterator<'a, T> {
         Some(subgrid)
     }
 }
+*/
 
 impl<T> Index<(usize, usize)> for Grid<T> {
     type Output = T;
 
     fn index(&self, (row, col): (usize, usize)) -> &Self::Output {
-        &self.0[row][col]
+        &self.data[row * self.width() + col]
     }
 }
 
 impl<T> IndexMut<(usize, usize)> for Grid<T> {
     fn index_mut(&mut self, (row, col): (usize, usize)) -> &mut Self::Output {
-        &mut self.0[row][col]
+        let idx = row * self.width() + col;
+        &mut self.data[idx]
     }
 }
 
@@ -261,7 +286,10 @@ mod tests {
     use super::Grid;
     #[test]
     fn rotation_works() {
-        let grid = Grid(vec![vec![0, 1], vec![2, 3]]);
+        let grid = Grid {
+            data: vec![0, 1, 2, 3],
+            rows: 2,
+        };
         let r_grid = grid.rotate();
 
         assert_eq!(2, r_grid[(0, 0)]);
@@ -271,8 +299,13 @@ mod tests {
     }
     #[test]
     fn rotation_works1() {
-        let grid = Grid(vec![vec![0, 1]]);
+        let grid = Grid {
+            data: vec![0, 1],
+            rows: 1,
+        };
         let r_grid = grid.rotate();
+
+        println!("{r_grid:?}");
 
         assert_eq!(0, r_grid[(0, 0)]);
         assert_eq!(1, r_grid[(1, 0)]);

@@ -64,8 +64,8 @@ impl Board {
                 ]
             } else {
                 [
-                    Grid::<Fence>::default(task.width(), task.height() + 1),
-                    Grid::<Fence>::default(task.width() + 1, task.height()),
+                    Grid::<Fence>::new(task.height() + 1, task.width()),
+                    Grid::<Fence>::new(task.height(), task.width() + 1),
                 ]
             },
             task,
@@ -82,8 +82,8 @@ impl Board {
                 ]
             } else {
                 [
-                    Grid::<Fence>::default(task.width(), task.height() + 1),
-                    Grid::<Fence>::default(task.width() + 1, task.height()),
+                    Grid::<Fence>::new(task.height() + 1, task.width()),
+                    Grid::<Fence>::new(task.height(), task.width() + 1),
                 ]
             },
             task,
