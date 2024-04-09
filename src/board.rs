@@ -15,7 +15,7 @@ const BOX_VERTICAL_HORIZONTAL: char = '┼';
 const DOT: char = '∙';
 const CROSS: char = '×';
 
-pub(crate) mod items;
+mod items;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Direction {
@@ -31,7 +31,7 @@ pub enum Direction {
 
 use Direction::*;
 
-use self::items::{Fence, U2};
+pub use self::items::{Fence, U2};
 #[derive(Debug)]
 pub struct Board {
     fences: [Grid<Fence>; 2],

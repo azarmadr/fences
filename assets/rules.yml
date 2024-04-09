@@ -20,6 +20,18 @@
 - task: "  \n  "
   fences: uuyyuu_uuuuuu
   solution: uuuuuu_unuunu
+- task: "  \n  "
+  fences: uuuyuu_unuunu
+  solution: uuyuuu_uuuuuu
+- task: "  \n  "
+  fences: uu_yu_uu_unu_unu
+  solution: uuuyuu_uuuuuu
+- task: "  \n  "
+  fences: uunyuu_uuuunu
+  solution: uuuuuu_uyuuuu
+- task: "  \n  "
+  fences: uunyuu_unuuuu
+  solution: uuuuuu_uuuuyu
 - task: " 3\n0 "
   fences: uuuuuu_uuuuuu
   solution: uuuyuu_uyuuuu

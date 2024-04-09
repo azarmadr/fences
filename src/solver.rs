@@ -1,9 +1,6 @@
 use crate::{
     add_idx,
-    board::{
-        items::{Fence, U2},
-        print_board, Fences, Task,
-    },
+    board::{print_board, Fence, Fences, Task, U2},
     sub_idx, Board,
 };
 use grid::Grid;
@@ -123,47 +120,44 @@ impl BoardRule {
         let origin = (0, 0);
         println!("Trying rule:\n{self}");
         let mut retain = false;
-        for row in 0..=bounds.0 {
-            for col in 0..=bounds.1 {
-                let idx = (row, col);
-                if self.corner.map_or(false, |x| {
-                    [origin, (0, bounds.1), bounds, (bounds.0, 0)][x] != idx
-                }) {
-                    continue;
-                }
-                let task_match = self.task.indexed_iter().all(|(i, x)| {
-                    x.is_none() || x == board.task().get(row + i.0, col + i.1).unwrap()
-                });
-                /*
-                    .subgrid_iter(origin, size)
-                    .zip(board.task().subgrid_iter(idx, size))
-                    .all(|(a, b)| a.is_none() || a == b);
-                */
-                retain |= task_match;
-                if task_match
-                    && [0usize, 1].iter().all(|&dir| {
-                        self.fences[dir].indexed_iter().all(|(i, x)| {
-                            x.is_none()
-                                || x == board.fences()[dir].get(i.0 + row, col + i.1).unwrap()
-                        })
+        for (row, col) in (0..=bounds.0)
+            .into_iter()
+            .flat_map(|row| (0..=bounds.1).into_iter().map(move |col| (row, col)))
+        {
+            let idx = (row, col);
+            if self.corner.map_or(false, |x| {
+                [origin, (0, bounds.1), bounds, (bounds.0, 0)][x] != idx
+            }) {
+                continue;
+            }
+            let task_match = self
+                .task
+                .indexed_iter()
+                .all(|(i, x)| x.is_none() || x == board.task().get(row + i.0, col + i.1).unwrap());
+            let mut retain_ = task_match;
+            if task_match
+                && [0usize, 1].iter().all(|&dir| {
+                    self.fences[dir].indexed_iter().all(|(i, x)| {
+                        x.is_none() || x == board.fences()[dir].get(i.0 + row, col + i.1).unwrap()
                     })
-                {
-                    println!(
-                        "match at idx: {idx:?} size: {size:?} bounds: {bounds:?} {:?}",
-                        self.task
-                            .indexed_iter()
-                            .map(|(i, _)| board.task().get(i.0 + row, col + i.1))
-                            .collect::<Vec<_>>()
-                    );
-                    retain &= false;
-                    for dir in [0, 1] {
-                        self.solution[dir]
-                            .indexed_iter()
-                            .filter(|x| !x.1.is_none())
-                            .for_each(|(i, x)| board.fences_mut()[dir][add_idx(i, idx)] = *x)
-                    }
+                })
+            {
+                println!(
+                    "match at idx: {idx:?} size: {size:?} bounds: {bounds:?} {:?}",
+                    self.task
+                        .indexed_iter()
+                        .map(|(i, _)| board.task().get(i.0 + row, col + i.1))
+                        .collect::<Vec<_>>()
+                );
+                retain_ = false;
+                for dir in [0, 1] {
+                    self.solution[dir]
+                        .indexed_iter()
+                        .filter(|x| !x.1.is_none())
+                        .for_each(|(i, x)| board.fences_mut()[dir][add_idx(i, idx)] = *x)
                 }
             }
+            retain |= retain_
         }
         retain
     }
@@ -171,7 +165,6 @@ impl BoardRule {
         let f = std::fs::File::open(file).expect("Couldn't open file");
         let rules: Vec<BoardRule> = serde_yaml::from_reader(f).expect("Couldn't obtain rules");
         rules.iter().flat_map(|x| x.get_rotations()).collect()
-        // rules
     }
 }
 impl core::fmt::Display for BoardRule {
@@ -179,9 +172,11 @@ impl core::fmt::Display for BoardRule {
         if let Some(x) = self.corner {
             write!(f, "corner: {x}\n")?;
         }
-        let from = print_board(&self.task, &self.fences).lines()
+        let from = print_board(&self.task, &self.fences)
+            .lines()
             .zip(print_board(&self.task, &self.solution).lines())
-            .map(|(x,y)| format!("{x} ║ {y}\n")).fold(String::new(), |a, b| a + &b);
+            .map(|(x, y)| format!("{x} ║ {y}\n"))
+            .fold(String::new(), |a, b| a + &b);
         let from = from.trim_end();
         write!(f, "{from}\n")?;
         Ok(())
@@ -190,12 +185,8 @@ impl core::fmt::Display for BoardRule {
 
 pub fn solve(board: &mut Board) {
     let mut rules = BoardRule::read_rules_from_yaml("assets/rules.yml");
-    for rule in &rules {
-        print!("rule:\n{rule}");
-    }
-
-    for _ in 0..3 {
-        println!("Rules retained:{}", rules.len());
+    for _ in 0..5 {
         rules.retain(|x| x.apply(board));
+        println!("Rules retained:{}", rules.len());
     }
 }
