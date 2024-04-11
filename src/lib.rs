@@ -1,6 +1,7 @@
 pub mod board;
 
 pub use crate::board::{Board, Direction};
+pub use solver::BoardRule;
 
 pub mod solver;
 

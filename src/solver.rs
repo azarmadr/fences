@@ -6,10 +6,13 @@ use crate::{
 use grid::Grid;
 use serde::Deserialize;
 use serde_yaml;
-use std::{collections::HashSet, usize};
+use std::{
+    collections::{HashMap, HashSet},
+    usize,
+};
 
 #[derive(Debug, Clone)]
-struct BoardRule {
+pub struct BoardRule {
     task: Task,
     fences: Fences,
     solution: Fences,
@@ -114,54 +117,68 @@ impl BoardRule {
         }
         ret
     }
-    fn apply(&self, board: &mut Board) -> bool {
+    pub fn apply_at(&self, board: &mut Board, idx: (usize, usize)) -> bool {
         let size = self.task.size();
         let bounds = sub_idx(board.size(), size);
         let origin = (0, 0);
-        println!("Trying rule:\n{self}");
+        let (row, col) = idx;
+        if row > bounds.0
+            || col > bounds.1
+            || self.corner.map_or(false, |x| {
+                [origin, (0, bounds.1), bounds, (bounds.0, 0)][x] != idx
+            })
+        {
+            return false;
+        }
+        let task_match = self
+            .task
+            .indexed_iter()
+            .filter(|x| x.1.is_some())
+            .all(|(i, x)| *x == board.task()[add_idx(i, idx)])
+            && [0usize, 1].iter().any(|&dir| {
+                self.fences[dir]
+                    .indexed_iter()
+                    .filter(|x| x.1.is_some())
+                    .any(|(i, _)| board.fences()[dir][add_idx(i, idx)].is_none())
+            });
+        if task_match
+            && [0usize, 1].iter().all(|&dir| {
+                self.fences[dir]
+                    .indexed_iter()
+                    .filter(|x| x.1.is_some())
+                    .all(|(i, x)| *x == board.fences()[dir][add_idx(i, idx)])
+            })
+        {
+            log::trace!(
+                "match at idx: {idx:?} size: {size:?} bounds: {bounds:?} {:?}",
+                self.task
+                    .indexed_iter()
+                    .map(|(i, _)| board.task().get(i.0 + row, col + i.1))
+                    .collect::<Vec<_>>()
+            );
+            for dir in [0, 1] {
+                self.solution[dir]
+                    .indexed_iter()
+                    .filter(|x| x.1.is_some())
+                    .for_each(|(i, x)| board.fences_mut()[dir][add_idx(i, idx)] = *x)
+            }
+        }
+        task_match
+    }
+    pub fn apply(&self, board: &mut Board) -> bool {
+        let size = self.task.size();
+        let bounds = sub_idx(board.size(), size);
+        log::trace!("Trying rule:\n{self}");
         let mut retain = false;
-        for (row, col) in (0..=bounds.0)
+        for idx in (0..=bounds.0)
             .into_iter()
             .flat_map(|row| (0..=bounds.1).into_iter().map(move |col| (row, col)))
         {
-            let idx = (row, col);
-            if self.corner.map_or(false, |x| {
-                [origin, (0, bounds.1), bounds, (bounds.0, 0)][x] != idx
-            }) {
-                continue;
-            }
-            let task_match = self
-                .task
-                .indexed_iter()
-                .all(|(i, x)| x.is_none() || x == board.task().get(row + i.0, col + i.1).unwrap());
-            let mut retain_ = task_match;
-            if task_match
-                && [0usize, 1].iter().all(|&dir| {
-                    self.fences[dir].indexed_iter().all(|(i, x)| {
-                        x.is_none() || x == board.fences()[dir].get(i.0 + row, col + i.1).unwrap()
-                    })
-                })
-            {
-                println!(
-                    "match at idx: {idx:?} size: {size:?} bounds: {bounds:?} {:?}",
-                    self.task
-                        .indexed_iter()
-                        .map(|(i, _)| board.task().get(i.0 + row, col + i.1))
-                        .collect::<Vec<_>>()
-                );
-                retain_ = false;
-                for dir in [0, 1] {
-                    self.solution[dir]
-                        .indexed_iter()
-                        .filter(|x| !x.1.is_none())
-                        .for_each(|(i, x)| board.fences_mut()[dir][add_idx(i, idx)] = *x)
-                }
-            }
-            retain |= retain_
+            retain |= self.apply_at(board, idx)
         }
         retain
     }
-    fn read_rules_from_yaml(file: &str) -> Vec<Self> {
+    pub fn read_rules_from_yaml(file: &str) -> Vec<Self> {
         let f = std::fs::File::open(file).expect("Couldn't open file");
         let rules: Vec<BoardRule> = serde_yaml::from_reader(f).expect("Couldn't obtain rules");
         rules.iter().flat_map(|x| x.get_rotations()).collect()
@@ -187,6 +204,37 @@ pub fn solve(board: &mut Board) {
     let mut rules = BoardRule::read_rules_from_yaml("assets/rules.yml");
     for _ in 0..5 {
         rules.retain(|x| x.apply(board));
-        println!("Rules retained:{}", rules.len());
+        log::info!("Rules retained:{}", rules.len());
+        if rules.is_empty() {
+            break;
+        }
     }
+}
+pub fn solve2(board: &mut Board) {
+    let rules = BoardRule::read_rules_from_yaml("assets/rules.yml");
+    let mut hm: HashMap<_, _> = board
+        .task()
+        .clone()
+        .indexed_iter()
+        .map(|x| {
+            (
+                x.0,
+                rules
+                    .iter()
+                    .filter(|r| r.apply_at(board, x.0))
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .filter(|x| !x.1.is_empty())
+        .collect();
+    for _ in 0..4 {
+        let keys: Vec<_> = hm.keys().cloned().collect();
+        for k in keys {
+            hm.get_mut(&k).unwrap().retain(|r| r.apply_at(board, k));
+            if hm.get(&k).unwrap().is_empty() {
+                hm.remove(&k);
+            }
+        }
+    }
+    log::trace!("{hm:?}");
 }
