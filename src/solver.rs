@@ -12,11 +12,18 @@ use std::{
 };
 
 #[derive(Debug, Clone)]
+enum TaskType {
+    Corner(usize),
+    Edge(usize),
+    None,
+}
+
+#[derive(Debug, Clone)]
 pub struct BoardRule {
     task: Task,
     fences: Fences,
     solution: Fences,
-    corner: Option<usize>,
+    variant: TaskType,
 }
 
 impl<'de> Deserialize<'de> for BoardRule {
@@ -31,6 +38,8 @@ impl<'de> Deserialize<'de> for BoardRule {
             solution: String,
             #[serde(default)]
             corner: bool,
+            #[serde(default)]
+            edge: bool,
         }
 
         let Helper {
@@ -38,8 +47,15 @@ impl<'de> Deserialize<'de> for BoardRule {
             fences,
             solution,
             corner,
+            edge,
         } = Helper::deserialize(deserializer)?;
 
+        if corner && edge {
+            unreachable!(
+                r"rule can be either `corner` or `edge`, or neither.
+                         Please use any one of them or none of them"
+            )
+        }
         let cols = task.lines().last().unwrap().chars().count();
         let task: Task =
             Grid::from_vec(task.replace('\n', "").chars().map(U2::from).collect(), cols);
@@ -55,12 +71,18 @@ impl<'de> Deserialize<'de> for BoardRule {
             Grid::from_vec(solution[0..boundary].to_vec(), task.cols()),
             Grid::from_vec(solution[boundary..].to_vec(), task.cols() + 1),
         ];
-        let corner = if corner { Some(0) } else { None };
+        let variant = if corner {
+            TaskType::Corner(0)
+        } else if edge {
+            TaskType::Edge(0)
+        } else {
+            TaskType::None
+        };
         Ok(Self {
             task,
             fences,
             solution,
-            corner,
+            variant,
         })
     }
 }
@@ -71,7 +93,7 @@ impl BoardRule {
             task,
             fences,
             solution,
-            corner,
+            variant,
         } = self;
         [
             task.iter().map(|x| char::from(x.clone())).collect(),
@@ -79,7 +101,7 @@ impl BoardRule {
             fences[1].iter().map(|&x| char::from(x)).collect(),
             solution[0].iter().map(|&x| char::from(x)).collect(),
             solution[1].iter().map(|&x| char::from(x)).collect(),
-            corner.map_or("".to_string(), |x| x.to_string()),
+            format!("{variant:?}"),
         ]
         .join("|")
     }
@@ -88,13 +110,13 @@ impl BoardRule {
             task,
             fences,
             solution,
-            corner,
+            variant,
         } = self;
         let mut ret: Vec<Self> = vec![Self {
             task: task.clone(),
             fences: [fences[0].clone(), fences[1].clone()],
             solution: [solution[0].clone(), solution[1].clone()],
-            corner: *corner,
+            variant: variant.clone(),
         }];
         let mut set = HashSet::from([self.to_hash()]);
         for _ in 1..4 {
@@ -106,9 +128,11 @@ impl BoardRule {
             rot.solution[1].rotate_right();
             rot.solution[0].rotate_right();
             rot.solution.rotate_right(1);
-            if let Some(v) = rot.corner.as_mut() {
-                *v += 1;
-            }
+            match &mut rot.variant {
+                TaskType::Corner(v) => *v += 1,
+                TaskType::Edge(v) => *v += 1,
+                _ => (),
+            };
             if set.insert(rot.to_hash()) {
                 ret.push(rot)
             } else {
@@ -121,12 +145,15 @@ impl BoardRule {
         let size = self.task.size();
         let bounds = sub_idx(board.size(), size);
         let origin = (0, 0);
-        let (row, col) = idx;
-        if row > bounds.0
-            || col > bounds.1
-            || self.corner.map_or(false, |x| {
-                [origin, (0, bounds.1), bounds, (bounds.0, 0)][x] != idx
-            })
+        if idx.0 > bounds.0
+            || idx.1 > bounds.1
+            || match self.variant {
+                TaskType::Corner(x) => [origin, (0, bounds.1), bounds, (bounds.0, 0)][x] != idx,
+                TaskType::Edge(x) => {
+                    [idx.0 != 0, idx.1 != bounds.1, idx.0 != bounds.0, idx.1 != 0][x]
+                }
+                _ => false,
+            }
         {
             return None;
         }
@@ -176,8 +203,10 @@ impl BoardRule {
 }
 impl core::fmt::Display for BoardRule {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        if let Some(x) = self.corner {
+        if let TaskType::Corner(x) = self.variant {
             write!(f, "corner: {x}\n")?;
+        } else if let TaskType::Edge(x) = self.variant {
+            write!(f, "edge: {x}\n")?;
         }
         let from = print_board(&self.task, &self.fences)
             .lines()
@@ -211,10 +240,10 @@ pub fn solve1(board: &mut Board) {
             }
             retain
         });
-        log::info!("Rules retained:{}", rules.len());
         if rules.is_empty() || is_done {
             break;
         }
+        log::info!("Rules retained:{}", rules.len());
     }
 }
 pub fn solve2(board: &mut Board) {
@@ -226,12 +255,12 @@ pub fn solve2(board: &mut Board) {
         .collect();
     loop {
         log::info!("Solving..");
-        let mut board_not_changed = true;
+        let mut is_done = true;
         for &k in keys.iter() {
             if let Some(idxs) = hm.get_mut(&k) {
                 idxs.retain(|i| {
                     if let Some(x) = rules[*i].apply_at(board, k) {
-                        board_not_changed &= x;
+                        is_done &= x;
                         x
                     } else {
                         false
@@ -242,7 +271,7 @@ pub fn solve2(board: &mut Board) {
                 }
             }
         }
-        if board_not_changed {
+        if is_done {
             break;
         }
         log::trace!("{hm:?}");

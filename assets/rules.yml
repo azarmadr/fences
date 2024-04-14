@@ -4,6 +4,9 @@
 - task: '1'
   fences: yuuu
   solution: ynnn
+- task: '2'
+  fences: uu_nn
+  solution: yy_uu
 - task: '3'
   fences: uuun
   solution: yyyn
@@ -40,3 +43,63 @@
      3
   fences: uuuuuu_uuuuuu
   solution: yuuuuy_yuuuuy
+
+# nyy
+- task: "  "
+  fences: nu_uu_uyu
+  solution: uy_uu_uuu
+  edge: true
+- task: "  "
+  fences: ny_uu_uuu
+  solution: uu_uu_uyu
+  edge: true
+- task: "  "
+  fences: uy_uu_uyu
+  solution: nu_uu_uuu
+  edge: true
+
+# yny
+- task: "  "
+  fences: yu_uu_uyu
+  solution: un_uu_uuu
+  edge: true
+- task: "  "
+  fences: yn_uu_uuu
+  solution: uu_uu_uyu
+  edge: true
+- task: "  "
+  fences: un_uu_uyu
+  solution: yu_uu_uuu
+  edge: true
+
+# yyn
+- task: "  "
+  fences: uy_uu_unu
+  solution: yu_uu_uuu
+  edge: true
+- task: "  "
+  fences: yy_uu_uuu
+  solution: uu_uu_unu
+  edge: true
+- task: "  "
+  fences: yu_uu_unu
+  solution: uy_uu_uuu
+  edge: true
+
+- task: " "
+  fences: uu_nu
+  solution: nu_uu
+  corner: true
+- task: " "
+  fences: nu_uu
+  solution: uu_nu
+  corner: true
+
+- task: " "
+  fences: uu_yu
+  solution: yu_uu
+  corner: true
+- task: " "
+  fences: yu_uu
+  solution: uu_yu
+  corner: true
