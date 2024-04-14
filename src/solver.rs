@@ -117,7 +117,7 @@ impl BoardRule {
         }
         ret
     }
-    pub fn apply_at(&self, board: &mut Board, idx: (usize, usize)) -> bool {
+    pub fn apply_at(&self, board: &mut Board, idx: (usize, usize)) -> Option<bool> {
         let size = self.task.size();
         let bounds = sub_idx(board.size(), size);
         let origin = (0, 0);
@@ -128,7 +128,7 @@ impl BoardRule {
                 [origin, (0, bounds.1), bounds, (bounds.0, 0)][x] != idx
             })
         {
-            return false;
+            return None;
         }
         let task_match = self
             .task
@@ -136,11 +136,12 @@ impl BoardRule {
             .filter(|x| x.1.is_some())
             .all(|(i, x)| *x == board.task()[add_idx(i, idx)])
             && [0usize, 1].iter().any(|&dir| {
-                self.fences[dir]
+                self.solution[dir]
                     .indexed_iter()
-                    .filter(|x| x.1.is_some())
-                    .any(|(i, _)| board.fences()[dir][add_idx(i, idx)].is_none())
+                    .filter_map(|x| x.1.map(|_| x.0))
+                    .any(|i| board.fences()[dir][add_idx(i, idx)].is_none())
             });
+
         if task_match
             && [0usize, 1].iter().all(|&dir| {
                 self.fences[dir]
@@ -153,7 +154,7 @@ impl BoardRule {
                 "match at idx: {idx:?} size: {size:?} bounds: {bounds:?} {:?}",
                 self.task
                     .indexed_iter()
-                    .map(|(i, _)| board.task().get(i.0 + row, col + i.1))
+                    .map(|(i, _)| board.task()[add_idx(i, idx)].clone())
                     .collect::<Vec<_>>()
             );
             for dir in [0, 1] {
@@ -162,21 +163,10 @@ impl BoardRule {
                     .filter(|x| x.1.is_some())
                     .for_each(|(i, x)| board.fences_mut()[dir][add_idx(i, idx)] = *x)
             }
+            Some(false)
+        } else {
+            Some(true)
         }
-        task_match
-    }
-    pub fn apply(&self, board: &mut Board) -> bool {
-        let size = self.task.size();
-        let bounds = sub_idx(board.size(), size);
-        log::trace!("Trying rule:\n{self}");
-        let mut retain = false;
-        for idx in (0..=bounds.0)
-            .into_iter()
-            .flat_map(|row| (0..=bounds.1).into_iter().map(move |col| (row, col)))
-        {
-            retain |= self.apply_at(board, idx)
-        }
-        retain
     }
     pub fn read_rules_from_yaml(file: &str) -> Vec<Self> {
         let f = std::fs::File::open(file).expect("Couldn't open file");
@@ -200,41 +190,61 @@ impl core::fmt::Display for BoardRule {
     }
 }
 
-pub fn solve(board: &mut Board) {
+pub use solve2 as solve;
+pub fn solve1(board: &mut Board) {
     let mut rules = BoardRule::read_rules_from_yaml("assets/rules.yml");
-    for _ in 0..5 {
-        rules.retain(|x| x.apply(board));
+    loop {
+        let mut is_done = true;
+        rules.retain(|r| {
+            let size = r.task.size();
+            let bounds = sub_idx(board.size(), size);
+            log::trace!("Trying rule:\n{r}");
+            let mut retain = false;
+            for idx in (0..=bounds.0)
+                .into_iter()
+                .flat_map(|row| (0..=bounds.1).into_iter().map(move |col| (row, col)))
+            {
+                if let Some(x) = r.apply_at(board, idx) {
+                    retain |= x;
+                    is_done &= x;
+                }
+            }
+            retain
+        });
         log::info!("Rules retained:{}", rules.len());
-        if rules.is_empty() {
+        if rules.is_empty() || is_done {
             break;
         }
     }
 }
 pub fn solve2(board: &mut Board) {
     let rules = BoardRule::read_rules_from_yaml("assets/rules.yml");
-    let mut hm: HashMap<_, _> = board
-        .task()
-        .clone()
-        .indexed_iter()
-        .map(|x| {
-            (
-                x.0,
-                rules
-                    .iter()
-                    .filter(|r| r.apply_at(board, x.0))
-                    .collect::<Vec<_>>(),
-            )
-        })
-        .filter(|x| !x.1.is_empty())
+    let keys: Vec<_> = board.task().indexed_iter().map(|x| x.0).collect();
+    let mut hm: HashMap<_, _> = keys
+        .iter()
+        .map(|&k| (k, (0..rules.len()).collect::<Vec<_>>()))
         .collect();
-    for _ in 0..4 {
-        let keys: Vec<_> = hm.keys().cloned().collect();
-        for k in keys {
-            hm.get_mut(&k).unwrap().retain(|r| r.apply_at(board, k));
-            if hm.get(&k).unwrap().is_empty() {
-                hm.remove(&k);
+    loop {
+        log::info!("Solving..");
+        let mut board_not_changed = true;
+        for &k in keys.iter() {
+            if let Some(idxs) = hm.get_mut(&k) {
+                idxs.retain(|i| {
+                    if let Some(x) = rules[*i].apply_at(board, k) {
+                        board_not_changed &= x;
+                        x
+                    } else {
+                        false
+                    }
+                });
+                if idxs.is_empty() {
+                    hm.remove(&k);
+                }
             }
         }
+        if board_not_changed {
+            break;
+        }
+        log::trace!("{hm:?}");
     }
-    log::trace!("{hm:?}");
 }
