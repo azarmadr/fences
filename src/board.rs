@@ -17,20 +17,6 @@ const CROSS: char = '×';
 
 mod items;
 
-#[derive(Copy, Clone, Debug)]
-pub enum Direction {
-    Horizontal,
-    Vertical,
-    /*
-    Up,
-    Down,
-    Right,
-    Left
-    */
-}
-
-use Direction::*;
-
 pub use self::items::{Fence, U2};
 #[derive(Debug)]
 pub struct Board {
@@ -62,26 +48,7 @@ impl Board {
             task,
         }
     }
-    /*
-    pub fn from_task_lines(task: &str, solution: Option<&str>) -> Self {
-        let task = Grid::<U2>::from_lines(task);
-        let (width, rows) = (task.width(), task.rows());
-        Board {
-            fences: if let Some(sol) = solution {
-                [
-                    Grid::from_string(width, &sol[0..(width * (rows + 1))]),
-                    Grid::from_string(width + 1, &sol[(width * (rows + 1))..]),
-                ]
-            } else {
-                [
-                    Grid::<Fence>::new(task.rows() + 1, task.width()),
-                    Grid::<Fence>::new(task.rows(), task.width() + 1),
-                ]
-            },
-            task,
-        }
-    }
-    */
+
     pub fn set_solution(&mut self, solution: &str) {
         let (cols, rows) = (self.cols(), self.rows());
         let b = cols * (rows + 1);
@@ -111,9 +78,6 @@ impl Board {
     }
     pub fn fences_mut(&mut self) -> &mut Fences {
         &mut self.fences
-    }
-    pub fn get_fence(&self, direction: Direction, row: usize, col: usize) -> Fence {
-        self.fences[usize::from(matches!(direction, Vertical))][(row, col)]
     }
     /*
     pub fn get_solution(&self) -> String {
@@ -206,6 +170,22 @@ pub fn print_board(task: &Task, fences: &Fences) -> String {
 
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", print_board(&self.task, &self.fences))
+        write!(
+            f,
+            "   {}\n",
+            (0..self.task.cols()).fold("".to_string(), |acc, x| format!("{acc}{x:2}"))
+        )?;
+        for (i, x) in print_board(&self.task, &self.fences).lines().enumerate() {
+            write!(
+                f,
+                "{}",
+                if i % 2 == 1 {
+                    format!("{:3}{x}\n", i / 2)
+                } else {
+                    format!("   {x}\n")
+                }
+            )?;
+        }
+        Ok(())
     }
 }

@@ -144,11 +144,10 @@ impl BoardRule {
     pub fn apply_at(&self, board: &mut Board, idx: (usize, usize)) -> Option<bool> {
         let size = self.task.size();
         let bounds = sub_idx(board.size(), size);
-        let origin = (0, 0);
         if idx.0 > bounds.0
             || idx.1 > bounds.1
             || match self.variant {
-                TaskType::Corner(x) => [origin, (0, bounds.1), bounds, (bounds.0, 0)][x] != idx,
+                TaskType::Corner(x) => [(0, 0), (0, bounds.1), bounds, (bounds.0, 0)][x] != idx,
                 TaskType::Edge(x) => {
                     [idx.0 != 0, idx.1 != bounds.1, idx.0 != bounds.0, idx.1 != 0][x]
                 }
@@ -168,6 +167,9 @@ impl BoardRule {
                     .filter_map(|x| x.1.map(|_| x.0))
                     .any(|i| board.fences()[dir][add_idx(i, idx)].is_none())
             });
+        if !task_match {
+            return None;
+        }
 
         if task_match
             && [0usize, 1].iter().all(|&dir| {

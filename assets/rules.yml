@@ -5,6 +5,15 @@
   fences: yuuu
   solution: ynnn
 - task: '2'
+  fences: un_un
+  solution: yu_yu
+- task: '2'
+  fences: yu_yu
+  solution: un_un
+- task: '2'
+  fences: yy_uu
+  solution: uu_nn
+- task: '2'
   fences: uu_nn
   solution: yy_uu
 - task: '3'
@@ -14,9 +23,13 @@
   fences: uuuu
   solution: yuyu
   corner: true
+- task: " 3\n  "
+  fences: uu_nu_uu_uuu_unu
+  solution: uu_uy_uu_uyu_uuu
 - task: '33'
   fences: uuuuuuu
   solution: uuuuyyy
+
 - task: "  \n  "
   fences: uu_yu_uu_uyu_uuu
   solution: uuunuu_uuuunu
@@ -35,6 +48,10 @@
 - task: "  \n  "
   fences: uunyuu_unuuuu
   solution: uuuuuu_uuuuyu
+- task: "  \n  "
+  fences: uunnuu_unuuuu
+  solution: uuuuuu_uuuunu
+
 - task: " 3\n0 "
   fences: uuuuuu_uuuuuu
   solution: uuuyuu_uyuuuu
@@ -84,6 +101,20 @@
 - task: "  "
   fences: yu_uu_unu
   solution: uy_uu_uuu
+  edge: true
+
+# nnn
+- task: "  "
+  fences: un_uu_unu
+  solution: nu_uu_uuu
+  edge: true
+- task: "  "
+  fences: nn_uu_uuu
+  solution: uu_uu_unu
+  edge: true
+- task: "  "
+  fences: nu_uu_unu
+  solution: un_uu_uuu
   edge: true
 
 - task: " "
