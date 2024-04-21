@@ -29,3 +29,40 @@ pub fn $a<const N: usize>(bencher: Bencher) {
 
 bench_solver! {rules_over_board, solve1}
 bench_solver! {hashmap, solve2}
+
+mod string {
+    use divan::Bencher;
+
+    const BOARDS: [&str; 2] = [
+        "\
+∙ ∙ ∙
+  ×  
+∙ ∙×∙
+  ×  
+∙ ∙ ∙",
+        "\
+∙ ∙ ∙
+
+∙×∙ ∙
+
+∙ ∙ ∙",
+    ];
+
+    #[divan::bench]
+    pub fn a(bencher: Bencher) {
+        bencher.with_inputs(|| BOARDS).bench_refs(|[a, b]| {
+            a.lines()
+                .zip(b.lines())
+                .map(|(x, y)| format!("{x} ║ {y}\n"))
+                .fold(String::new(), |a, b| a + &b);
+        })
+    }
+    #[divan::bench]
+    pub fn b(bencher: Bencher) {
+        bencher.with_inputs(|| BOARDS).bench_refs(|[a, b]| {
+            a.lines()
+                .zip(b.lines())
+                .fold(String::new(), |a, (b, c)| format!("{a}{b} ║ {c}\n"));
+        })
+    }
+}

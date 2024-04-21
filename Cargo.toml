@@ -1,3 +1,4 @@
+workspace = { members = ["examples/bevy-game"] }
 [package]
 name = "fences"
 version = "0.1.0"
@@ -13,6 +14,7 @@ log = "0.4.21"
 serde = {version = "1.0.152", features = ["derive"]}
 serde_yaml = "0.9.32"
 simple_logger = "4.3.3"
+structx = "0.1.11"
 
 [dev-dependencies]
 divan = "0.1.14"

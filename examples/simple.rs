@@ -6,8 +6,12 @@ use std::io::BufRead;
 use std::process::exit;
 
 fn main() -> Result<()> {
-    simple_logger::init_with_level(log::Level::Info).unwrap();
-    let rows = 5;
+    simple_logger::init_with_level(log::Level::Trace).unwrap();
+    let rows = get_input("select puzzle:")
+        .unwrap()
+        .trim()
+        .parse()
+        .unwrap_or(5);
     let task = match rows {
             5 => "         2  3331 0 1 3  3",
             15 => "3 32 1   23  3  3   2    23  3  0322  0    3 3       3  3  21  33 3    1 3 2 1 121  2  3      3    0   23 222     2   0 2  2 3       32 3    21 3   2     32221   2  3     1 31  2  3021231   2222     222   23    222 1232 3    ",
@@ -30,26 +34,34 @@ fn main() -> Result<()> {
                 std::fs::write(format!("moves-{rows}.txt"), moves.join("\n"))?;
                 exit(0)
             }
+            Some("u") => {
+                if let Some(m) = moves.pop() {
+                    println!("undo: {m}")
+                }
+            }
+            Some("m") => {
+                println!("{}", moves.join("\n"))
+            }
             Some(x) => {
                 moves.push(input.clone().trim().to_string());
-                let i: usize = x.parse()?;
+                let f: usize = x.parse()?;
                 let row = res.next().unwrap().parse()?;
                 let col = res.next().unwrap().parse()?;
-                log::info!("[{i}]({row}, {col})");
-                *b.fences_mut()[i][(row, col)] = Some(match res.next().unwrap() {
+                log::info!("[{f}]({row}, {col})");
+                *b.fences_mut()[f][(row, col)] = Some(match res.next().unwrap() {
                     "y" => true,
                     "n" => false,
                     x => unreachable!("{x}"),
                 });
+                i += 1;
+                println!("Move {i}:\n{b}");
+                solver::solve(b);
+                println!("Solver {i}.\n{b}");
             }
             _ => {
                 log::trace!("Continuing...")
             }
         }
-        i += 1;
-        println!("Move {i}:\n{b}");
-        solver::solve(b);
-        println!("Solver {i}.\n{b}");
         /*
         if let Some(won) = b.result() {
             if won {
@@ -73,8 +85,13 @@ fn main() -> Result<()> {
         }
     }
     loop {
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
+        let input = get_input("Your Move:")?;
         play(input)?;
     }
+}
+fn get_input(prompt: &str) -> Result<String> {
+    println!("{prompt}");
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    Ok(dbg!(input))
 }

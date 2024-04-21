@@ -51,9 +51,9 @@ pub struct Fence(Option<bool>);
 impl From<char> for Fence {
     fn from(value: char) -> Self {
         match value {
-            'y' => Fence(Some(true)),
-            'n' => Fence(Some(false)),
-            'u' => Fence(None),
+            '-' => Fence(Some(true)),
+            'x' => Fence(Some(false)),
+            '.' => Fence(None),
             _ => unreachable!(),
         }
     }
@@ -82,9 +82,9 @@ impl fmt::Debug for Fence {
 impl From<Fence> for char {
     fn from(value: Fence) -> char {
         match value.0 {
-            Some(true) => 'y',
-            Some(false) => 'n',
-            None => 'u',
+            Some(true) => '-',
+            Some(false) => 'x',
+            None => '.',
         }
     }
 }

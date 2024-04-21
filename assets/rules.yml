@@ -1,136 +1,136 @@
 - task: '0'
-  fences: uuuu
-  solution: nnnn
+  fences: ....
+  solution: xxxx
 - task: '1'
-  fences: yuuu
-  solution: ynnn
+  fences: -...
+  solution: .xxx
 - task: '2'
-  fences: un_un
-  solution: yu_yu
+  fences: .x_.x
+  solution: -._-.
 - task: '2'
-  fences: yu_yu
-  solution: un_un
+  fences: -._-.
+  solution: .x_.x
 - task: '2'
-  fences: yy_uu
-  solution: uu_nn
+  fences: --_..
+  solution: .._xx
 - task: '2'
-  fences: uu_nn
-  solution: yy_uu
+  fences: .._xx
+  solution: --_..
 - task: '3'
-  fences: uuun
-  solution: yyyn
+  fences: ...x
+  solution: ---.
 - task: '3'
-  fences: uuuu
-  solution: yuyu
+  fences: ....
+  solution: -.-.
   corner: true
 - task: " 3\n  "
-  fences: uu_nu_uu_uuu_unu
-  solution: uu_uy_uu_uyu_uuu
+  fences: .._x._.._..._.x.
+  solution: .._.-_.._.-._...
 - task: '33'
-  fences: uuuuuuu
-  solution: uuuuyyy
+  fences: .......
+  solution: ....---
 
 - task: "  \n  "
-  fences: uu_yu_uu_uyu_uuu
-  solution: uuunuu_uuuunu
+  fences: .._-._.._.-._...
+  solution: ...x.._....x.
 - task: "  \n  "
-  fences: uuyyuu_uuuuuu
-  solution: uuuuuu_unuunu
+  fences: ..--.._......
+  solution: ......_.x..x.
 - task: "  \n  "
-  fences: uuuyuu_unuunu
-  solution: uuyuuu_uuuuuu
+  fences: ...-.._.x..x.
+  solution: ..-..._......
 - task: "  \n  "
-  fences: uu_yu_uu_unu_unu
-  solution: uuuyuu_uuuuuu
+  fences: .._-._.._.x._.x.
+  solution: ...-.._......
 - task: "  \n  "
-  fences: uunyuu_uuuunu
-  solution: uuuuuu_uyuuuu
+  fences: ..x-.._....x.
+  solution: ......_.-....
 - task: "  \n  "
-  fences: uunyuu_unuuuu
-  solution: uuuuuu_uuuuyu
+  fences: ..x-.._.x....
+  solution: ......_....-.
 - task: "  \n  "
-  fences: uunnuu_unuuuu
-  solution: uuuuuu_uuuunu
+  fences: ..xx.._.x....
+  solution: ......_....x.
 
 - task: " 3\n0 "
-  fences: uuuuuu_uuuuuu
-  solution: uuuyuu_uyuuuu
+  fences: ......_......
+  solution: ...-.._.-....
 - task: |-
     3 
      3
-  fences: uuuuuu_uuuuuu
-  solution: yuuuuy_yuuuuy
+  fences: ......_......
+  solution: -....-_-....-
 
 # nyy
 - task: "  "
-  fences: nu_uu_uyu
-  solution: uy_uu_uuu
+  fences: x._.._.-.
+  solution: .-_.._...
   edge: true
 - task: "  "
-  fences: ny_uu_uuu
-  solution: uu_uu_uyu
+  fences: x-_.._...
+  solution: .._.._.-.
   edge: true
 - task: "  "
-  fences: uy_uu_uyu
-  solution: nu_uu_uuu
+  fences: .-_.._.-.
+  solution: x._.._...
   edge: true
 
 # yny
 - task: "  "
-  fences: yu_uu_uyu
-  solution: un_uu_uuu
+  fences: -._.._.-.
+  solution: .x_.._...
   edge: true
 - task: "  "
-  fences: yn_uu_uuu
-  solution: uu_uu_uyu
+  fences: -x_.._...
+  solution: .._.._.-.
   edge: true
 - task: "  "
-  fences: un_uu_uyu
-  solution: yu_uu_uuu
+  fences: .x_.._.-.
+  solution: -._.._...
   edge: true
 
 # yyn
 - task: "  "
-  fences: uy_uu_unu
-  solution: yu_uu_uuu
+  fences: .-_.._.x.
+  solution: -._.._...
   edge: true
 - task: "  "
-  fences: yy_uu_uuu
-  solution: uu_uu_unu
+  fences: --_.._...
+  solution: .._.._.x.
   edge: true
 - task: "  "
-  fences: yu_uu_unu
-  solution: uy_uu_uuu
+  fences: -._.._.x.
+  solution: .-_.._...
   edge: true
 
 # nnn
 - task: "  "
-  fences: un_uu_unu
-  solution: nu_uu_uuu
+  fences: .x_.._.x.
+  solution: x._.._...
   edge: true
 - task: "  "
-  fences: nn_uu_uuu
-  solution: uu_uu_unu
+  fences: xx_.._...
+  solution: .._.._.x.
   edge: true
 - task: "  "
-  fences: nu_uu_unu
-  solution: un_uu_uuu
+  fences: x._.._.x.
+  solution: .x_.._...
   edge: true
 
 - task: " "
-  fences: uu_nu
-  solution: nu_uu
+  fences: .._x.
+  solution: x._..
   corner: true
 - task: " "
-  fences: nu_uu
-  solution: uu_nu
+  fences: x._..
+  solution: .._x.
   corner: true
 
 - task: " "
-  fences: uu_yu
-  solution: yu_uu
+  fences: .._-.
+  solution: -._..
   corner: true
 - task: " "
-  fences: yu_uu
-  solution: uu_yu
+  fences: -._..
+  solution: .._-.
   corner: true

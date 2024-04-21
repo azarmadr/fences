@@ -64,10 +64,10 @@ impl Board {
     pub fn size(&self) -> (usize, usize) {
         self.task.size()
     }
-    pub fn rows(&self) -> usize {
+    fn rows(&self) -> usize {
         self.task.rows()
     }
-    pub fn cols(&self) -> usize {
+    fn cols(&self) -> usize {
         self.task.cols()
     }
     pub fn fences(&self) -> &Fences {
