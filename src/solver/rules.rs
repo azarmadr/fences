@@ -187,8 +187,8 @@ impl BoardRule {
             for dir in [0, 1] {
                 self.solution[dir]
                     .indexed_iter()
-                    .filter(|x| x.1.is_some())
-                    .for_each(|(i, x)| board.fences_mut()[dir][add_idx(i, idx)] = *x)
+                    .filter_map(|x| x.1.map(|v| (x.0, v)))
+                    .for_each(|(i, x)| board.play(dir, add_idx(i, idx), x, format!("{self}")))
             }
             Some(false)
         } else {

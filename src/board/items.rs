@@ -2,7 +2,25 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(PartialEq, Clone, Serialize, Deserialize, Default)]
-pub struct U2(Option<[bool; 2]>);
+pub struct U2(pub(crate) Option<[bool; 2]>);
+impl U2 {
+    #[inline]
+    pub fn is_ok(&self, xs: usize, dashes: usize) -> bool {
+        match self.0 {
+            None => true,
+            Some(x) => {
+                let mut val = 0;
+                if x[0] {
+                    val += 1
+                }
+                if x[1] {
+                    val += 2
+                }
+                dashes <= val && xs <= 4 - val
+            }
+        }
+    }
+}
 
 impl std::ops::Deref for U2 {
     type Target = Option<[bool; 2]>;
@@ -24,8 +42,8 @@ impl From<char> for U2 {
     fn from(value: char) -> Self {
         match value {
             '0' => U2(Some([false; 2])),
-            '1' => U2(Some([false, true])),
-            '2' => U2(Some([true, false])),
+            '1' => U2(Some([true, false])),
+            '2' => U2(Some([false, true])),
             '3' => U2(Some([true, true])),
             ' ' => U2(None),
             _ => unreachable!("U2 can't be guessed from {value}"),
@@ -37,8 +55,8 @@ impl From<U2> for char {
     fn from(value: U2) -> char {
         match value {
             U2(Some([false, false])) => '0',
-            U2(Some([false, true])) => '1',
-            U2(Some([true, false])) => '2',
+            U2(Some([true, false])) => '1',
+            U2(Some([false, true])) => '2',
             U2(Some([true, true])) => '3',
             U2(None) => ' ',
         }
@@ -46,7 +64,7 @@ impl From<U2> for char {
 }
 
 #[derive(Clone, Copy, Default, PartialEq)]
-pub struct Fence(Option<bool>);
+pub struct Fence(pub(crate) Option<bool>);
 
 impl From<char> for Fence {
     fn from(value: char) -> Self {

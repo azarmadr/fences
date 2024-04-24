@@ -1,5 +1,5 @@
 use grid::Grid;
-use std::{fmt, usize};
+use std::{collections::VecDeque, fmt};
 
 const BOX_HORIZONTAL: char = '─';
 const BOX_VERTICAL: char = '│';
@@ -17,79 +17,23 @@ const CROSS: char = '×';
 
 mod items;
 
+#[derive(Debug)]
+pub struct Move {
+    direction: usize,
+    idx: (usize, usize),
+    value: bool,
+    name: String,
+}
 pub use self::items::{Fence, U2};
 #[derive(Debug)]
 pub struct Board {
-    fences: [Grid<Fence>; 2],
-    task: Grid<U2>,
+    fences: Fences,
+    task: Task,
+    moves: Vec<Move>,
 }
 
 pub type Fences = [Grid<Fence>; 2];
 pub type Task = Grid<U2>;
-
-impl Board {
-    pub fn from_task_string(rows: usize, task: &str, solution: Option<&str>) -> Self {
-        let task = Grid::<U2>::from_vec(task.chars().map(U2::from).collect(), rows);
-        let bound = task.cols() * (task.rows() + 1);
-        Board {
-            fences: if let Some(sol) =
-                solution.map(|s| s.chars().map(Fence::from).collect::<Vec<Fence>>())
-            {
-                [
-                    Grid::<Fence>::from_vec(sol[0..bound].to_vec(), task.cols()),
-                    Grid::<Fence>::from_vec(sol[bound..].to_vec(), task.cols() + 1),
-                ]
-            } else {
-                [
-                    Grid::<Fence>::new(task.rows() + 1, task.cols()),
-                    Grid::<Fence>::new(task.rows(), task.cols() + 1),
-                ]
-            },
-            task,
-        }
-    }
-
-    pub fn set_solution(&mut self, solution: &str) {
-        let (cols, rows) = (self.cols(), self.rows());
-        let b = cols * (rows + 1);
-        for (i, c) in solution.chars().enumerate() {
-            let (dir, row, col) = if i < b {
-                (0, i % cols, i / cols)
-            } else {
-                (1, (i - b) % (cols + 1), (i - b) / (cols + 1))
-            };
-            self.fences[dir][(row, col)] = c.into();
-        }
-    }
-    pub fn size(&self) -> (usize, usize) {
-        self.task.size()
-    }
-    fn rows(&self) -> usize {
-        self.task.rows()
-    }
-    fn cols(&self) -> usize {
-        self.task.cols()
-    }
-    pub fn fences(&self) -> &Fences {
-        &self.fences
-    }
-    pub fn task(&self) -> &Grid<U2> {
-        &self.task
-    }
-    pub fn fences_mut(&mut self) -> &mut Fences {
-        &mut self.fences
-    }
-    /*
-    pub fn get_solution(&self) -> String {
-        self.fences
-            .iter()
-            .fold(String::new(), |a, x| a + "\n" + &x.to_string())
-    }
-    */
-    pub fn result(&self) -> Option<bool> {
-        unimplemented!();
-    }
-}
 
 pub fn print_board(task: &Task, fences: &Fences) -> String {
     let (rows, cols) = task.size();
@@ -188,4 +132,276 @@ impl fmt::Display for Board {
         }
         Ok(())
     }
+}
+
+impl Board {
+    pub fn from_task_string(rows: usize, task: &str, solution: Option<&str>) -> Self {
+        let task = Grid::<U2>::from_vec(task.chars().map(U2::from).collect(), rows);
+        let bound = task.cols() * (task.rows() + 1);
+        Board {
+            fences: if let Some(sol) =
+                solution.map(|s| s.chars().map(Fence::from).collect::<Vec<Fence>>())
+            {
+                [
+                    Grid::<Fence>::from_vec(sol[0..bound].to_vec(), task.cols()),
+                    Grid::<Fence>::from_vec(sol[bound..].to_vec(), task.cols() + 1),
+                ]
+            } else {
+                [
+                    Grid::<Fence>::new(task.rows() + 1, task.cols()),
+                    Grid::<Fence>::new(task.rows(), task.cols() + 1),
+                ]
+            },
+            task,
+            moves: vec![],
+        }
+    }
+
+    pub fn set_solution(&mut self, solution: &str) {
+        let (cols, rows) = (self.cols(), self.rows());
+        let b = cols * (rows + 1);
+        for (i, c) in solution.chars().enumerate() {
+            let (dir, row, col) = if i < b {
+                (0, i % cols, i / cols)
+            } else {
+                (1, (i - b) % (cols + 1), (i - b) / (cols + 1))
+            };
+            self.fences[dir][(row, col)] = c.into();
+        }
+    }
+    #[inline]
+    pub fn size(&self) -> (usize, usize) {
+        self.task.size()
+    }
+    #[inline]
+    fn rows(&self) -> usize {
+        self.task.rows()
+    }
+    #[inline]
+    fn cols(&self) -> usize {
+        self.task.cols()
+    }
+    pub fn fences(&self) -> &Fences {
+        &self.fences
+    }
+    pub fn task(&self) -> &Grid<U2> {
+        &self.task
+    }
+    /*
+    pub fn get_solution(&self) -> String {
+        self.fences
+            .iter()
+            .fold(String::new(), |a, x| a + "\n" + &x.to_string())
+    }
+    */
+    pub fn play(
+        &mut self,
+        direction: usize,
+        idx: (usize, usize),
+        value: bool,
+        name: impl Into<String>,
+    ) {
+        if self.fences[direction][idx].is_some_and(|x| x == value) {
+            log::trace!("Trying to overwrite an existing fence at [{direction}][{idx:?}]");
+            return;
+        }
+        *self.fences[direction][idx] = Some(value);
+        self.moves.push(Move {
+            direction,
+            idx,
+            value,
+            name: name.into(),
+        });
+    }
+    pub fn moves(&self) -> &Vec<Move> {
+        &self.moves
+    }
+    // #[inline]
+    // pub fn get_dot_fences(&self, idx: (usize, usize)) -> Vec<(usize, usize, usize)> {}
+    pub fn result(&self) -> Option<bool> {
+        let (rows, cols) = self.size();
+        #[derive(Debug)]
+        struct Count {
+            xs: usize,
+            dashes: usize,
+        }
+        impl Count {
+            fn incr(&mut self, value: Option<bool>) {
+                match value {
+                    Some(true) => self.dashes += 1,
+                    Some(false) => self.xs += 1,
+                    _ => (),
+                }
+            }
+        }
+
+        #[cfg(test)]
+        print!("{self}");
+        // Check for dots and tasks within the board
+        for row in 0..=rows {
+            for col in 0..=cols {
+                let node = &mut Count { xs: 0, dashes: 0 };
+                if col < cols {
+                    node.incr(self.fences[0][(row, col)].0);
+                }
+                if row < rows {
+                    node.incr(self.fences[1][(row, col)].0);
+                }
+                if col > 0 {
+                    node.incr(self.fences[0][(row, col - 1)].0);
+                }
+                if row > 0 {
+                    node.incr(self.fences[1][(row - 1, col)].0);
+                }
+                #[cfg(test)]
+                println!("Node at {:?} -> {node:?}", (row, col));
+                if node.dashes > 2 || node.dashes == 1 && node.xs == 3 {
+                    return Some(false);
+                }
+            }
+        }
+        for row in 0..rows {
+            for col in 0..cols {
+                let task = &mut Count { xs: 0, dashes: 0 };
+                task.incr(self.fences[0][(row, col)].0);
+                task.incr(self.fences[1][(row, col)].0);
+                task.incr(self.fences[0][(row + 1, col)].0);
+                task.incr(self.fences[1][(row, col + 1)].0);
+                #[cfg(test)]
+                println!("Task at {:?} -> {task:?}", (row, col));
+                if !self.task[(row, col)].is_ok(task.xs, task.dashes) {
+                    return Some(false);
+                }
+            }
+        }
+        if self.task.indexed_iter().all(|((row, col), val)| {
+            if val.is_none() {
+                return true;
+            }
+            let task = &mut Count { xs: 0, dashes: 0 };
+            task.incr(self.fences[0][(row, col)].0);
+            task.incr(self.fences[1][(row, col)].0);
+            task.incr(self.fences[0][(row + 1, col)].0);
+            task.incr(self.fences[1][(row, col + 1)].0);
+            #[cfg(test)]
+            println!("Task at {:?} -> {task:?}", (row, col));
+            self.task[(row, col)].0.is_some_and(|x| {
+                let mut val = 0;
+                if x[0] {
+                    val += 1
+                }
+                if x[1] {
+                    val += 2
+                }
+                val == task.dashes
+            })
+        }) && has_one_path_and_is_circular(&self.fences)
+        {
+            return Some(true);
+        }
+        None
+    }
+}
+
+type Edge = (usize, usize, usize);
+fn are_linked(l: &Edge, r: &Edge) -> bool {
+    if r.0 != l.0 {
+        let (r, l) = if r.0 == 0 { (r, l) } else { (l, r) };
+        [(0, 0), (0, -1), (1, -1), (1, 0)]
+            .contains(&(r.1 as isize - l.1 as isize, r.2 as isize - l.2 as isize))
+    } else {
+        let diff = (r.1.abs_diff(l.1), r.2.abs_diff(l.2));
+        if r.0 == 0 {
+            diff == (0, 1)
+        } else {
+            diff == (1, 0)
+        }
+    }
+    // println!("are_linked(r: {r:?}, l: {l:?}) -> {a}");
+}
+
+fn has_one_path_and_is_circular(fences: &Fences) -> bool {
+    let paths = get_paths(fences);
+    paths.len() == 1 && are_linked(&paths[0][0], paths[0].last().unwrap())
+}
+fn get_paths(fences: &Fences) -> Vec<Vec<(usize, usize, usize)>> {
+    let mut dashes: Vec<_> = (0usize..2)
+        .into_iter()
+        .flat_map(|dir| {
+            fences[dir]
+                .indexed_iter()
+                .filter_map(move |((row, col), val)| {
+                    if val.is_some_and(|x| x) {
+                        Some((dir, row, col))
+                    } else {
+                        None
+                    }
+                })
+        })
+        .collect();
+    #[cfg(test)]
+    println!("Dashes:{dashes:?}",);
+    let mut ret = vec![];
+    let mut row = VecDeque::new();
+    while !dashes.is_empty() {
+        if row.is_empty() {
+            row.push_back(dashes.pop().unwrap());
+        }
+        let mut row_changed = false;
+        if let Some(index) = dashes
+            .iter()
+            .position(|l| are_linked(l, row.front().unwrap()))
+        {
+            row.push_front(dashes.swap_remove(index));
+            row_changed = true;
+        }
+        if let Some(index) = dashes
+            .iter()
+            .position(|l| are_linked(l, row.back().unwrap()))
+        {
+            row.push_back(dashes.swap_remove(index));
+            row_changed = true;
+        }
+        if !row_changed || dashes.is_empty() {
+            row.make_contiguous();
+            ret.push(row.as_slices().0.to_vec());
+            row.clear();
+        }
+        #[cfg(test)]
+        println!("Row: {row:?}\nDashes: {dashes:?}",);
+    }
+    #[cfg(test)]
+    println!(
+        "Ret:\n{}",
+        ret.iter()
+            .map(|x| format!("{x:?}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    ret
+}
+
+#[test]
+fn check_board_result() {
+    assert_eq!(Board::from_task_string(2, "32  ", None).result(), None);
+    assert_eq!(
+        Board::from_task_string(2, "32  ", Some("...-...-....")).result(),
+        None
+    );
+    assert_eq!(
+        Board::from_task_string(2, "32  ", Some("..--...-....")).result(),
+        Some(false)
+    );
+    assert_eq!(
+        Board::from_task_string(2, "32  ", Some("..x-...x....")).result(),
+        Some(false)
+    );
+    assert_eq!(
+        Board::from_task_string(2, "32  ", Some("-.-...--....")).result(),
+        Some(false)
+    );
+    assert_eq!(
+        Board::from_task_string(2, "32  ", Some("---..--.-.--")).result(),
+        Some(true)
+    );
 }

@@ -2,6 +2,9 @@
   fences: ....
   solution: xxxx
 - task: '1'
+  solution: -...
+  fences: .xxx
+- task: '1'
   fences: -...
   solution: .xxx
 - task: '2'
@@ -16,6 +19,9 @@
 - task: '2'
   fences: .._xx
   solution: --_..
+- task: '3'
+  solution: ...x
+  fences: ---.
 - task: '3'
   fences: ...x
   solution: ---.

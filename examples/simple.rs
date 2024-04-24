@@ -11,7 +11,7 @@ fn main() -> Result<()> {
         .unwrap()
         .trim()
         .parse()
-        .unwrap_or(5);
+        .unwrap_or(15);
     let task = match rows {
             5 => "         2  3331 0 1 3  3",
             15 => "3 32 1   23  3  3   2    23  3  0322  0    3 3       3  3  21  33 3    1 3 2 1 121  2  3      3    0   23 222     2   0 2  2 3       32 3    21 3   2     32221   2  3     1 31  2  3021231   2222     222   23    222 1232 3    ",
@@ -29,7 +29,11 @@ fn main() -> Result<()> {
         log::trace!("{input}");
         let mut res = input.trim().split_whitespace();
         match res.next() {
-            Some("q") | Some("Q") => {
+            Some("s") => {
+                println!("Saving...");
+                std::fs::write(format!("moves-{rows}.txt"), moves.join("\n"))?;
+            }
+            Some("q") => {
                 println!("Exiting...");
                 std::fs::write(format!("moves-{rows}.txt"), moves.join("\n"))?;
                 exit(0)
@@ -40,26 +44,35 @@ fn main() -> Result<()> {
                 }
             }
             Some("m") => {
-                println!("{}", moves.join("\n"))
+                for m in b.moves() {
+                    println!("[{}]{:?}={}\n{}", m.direction, m.idx, m.value, m.name);
+                }
+                println!("User Moves: {}", moves.join("\n"))
             }
-            Some(x) => {
+            Some("p") => println!("Board:\n{b}"),
+            Some(x) if x == "0" || x == "1" => {
+                i += 1;
                 moves.push(input.clone().trim().to_string());
                 let f: usize = x.parse()?;
                 let row = res.next().unwrap().parse()?;
                 let col = res.next().unwrap().parse()?;
                 log::info!("[{f}]({row}, {col})");
-                *b.fences_mut()[f][(row, col)] = Some(match res.next().unwrap() {
-                    "y" => true,
-                    "n" => false,
-                    x => unreachable!("{x}"),
-                });
-                i += 1;
+                b.play(
+                    f,
+                    (row, col),
+                    match res.next().unwrap() {
+                        "y" => true,
+                        "n" => false,
+                        x => unreachable!("{x}"),
+                    },
+                    format!("player move {i}"),
+                );
                 println!("Move {i}:\n{b}");
                 solver::solve(b);
                 println!("Solver {i}.\n{b}");
             }
-            _ => {
-                log::trace!("Continuing...")
+            x => {
+                log::warn!("Unknown input = {x:?}\nContinuing...")
             }
         }
         /*

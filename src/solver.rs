@@ -31,7 +31,7 @@ pub fn solve1(board: &mut Board) {
 }
 pub fn solve2(board: &mut Board) {
     let rules = rules::BoardRule::read_rules_from_yaml("assets/rules.yml");
-    rules.iter().for_each(|r| log::trace!("{r}"));
+    rules.iter().for_each(|r| log::trace!("\n{r}"));
     let keys: Vec<_> = board.task().indexed_iter().map(|x| x.0).collect();
     let mut hm: HashMap<_, _> = keys
         .iter()
