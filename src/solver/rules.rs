@@ -209,9 +209,9 @@ impl core::fmt::Display for BoardRule {
         } else if let TaskType::Edge(x) = self.variant {
             write!(f, "edge: {x}\n")?;
         }
-        let from = print_board(&self.task, &self.fences)
+        let from = print_board(&self.task, &self.fences, false)
             .lines()
-            .zip(print_board(&self.task, &self.solution).lines())
+            .zip(print_board(&self.task, &self.solution, false).lines())
             .fold(String::new(), |a, (b, c)| format!("{a}{b} ║ {c}\n"));
         write!(f, "{from}")?;
         Ok(())

@@ -1,5 +1,6 @@
 use grid::Grid;
 use std::{collections::VecDeque, fmt};
+use colored::Colorize;
 
 const BOX_HORIZONTAL: char = '─';
 const BOX_VERTICAL: char = '│';
@@ -19,10 +20,10 @@ mod items;
 
 #[derive(Debug)]
 pub struct Move {
-    direction: usize,
-    idx: (usize, usize),
-    value: bool,
-    name: String,
+    pub direction: usize,
+    pub idx: (usize, usize),
+    pub value: bool,
+    pub name: String,
 }
 pub use self::items::{Fence, U2};
 #[derive(Debug)]
@@ -35,7 +36,24 @@ pub struct Board {
 pub type Fences = [Grid<Fence>; 2];
 pub type Task = Grid<U2>;
 
-pub fn print_board(task: &Task, fences: &Fences) -> String {
+pub fn print_board(task: &Task, fences: &Fences, color: bool) -> String {
+    let paths = if color { get_paths(fences) } else { vec![] };
+    let get_edge = |dir: usize, row, col| -> String {
+        if let Some(edge) = fences[dir][(row, col)].0 {
+            if edge {
+                let e = format!("{}",if dir == 1 {BOX_VERTICAL} else {BOX_HORIZONTAL});
+                if let Some(color) = paths.iter().position(|r| r.contains(&(dir, row, col))) {
+                   format!("{}", e.color(["green","blue", "cyan"][color % 3]))
+                } else {
+                    e
+                }
+            }
+            else {
+                if color {format!("{}",CROSS.to_string().red())} else {format!("{CROSS}")}
+            }
+        } else {" ".to_string()}
+    };
+
     let (rows, cols) = task.size();
     let get_dot_char = |row, col| {
         let mut n = [Fence::default(); 4];
@@ -84,28 +102,27 @@ pub fn print_board(task: &Task, fences: &Fences) -> String {
             f += &format!("{}", get_dot_char(row, col));
             f += &format!(
                 "{}",
-                fences[0][(row, col)]
-                    .map_or_else(|| ' ', |v| if v { BOX_HORIZONTAL } else { CROSS })
+                get_edge(0, row, col)
             );
         }
         f += &format!("{}\n", get_dot_char(row, cols));
         for col in 0..cols {
             f += &format!(
                 "{}{}",
-                fences[1][(row, col)].map_or_else(|| ' ', |v| if v { BOX_VERTICAL } else { CROSS }),
+                get_edge(1, row, col),
                 char::from(task[(row, col)].clone())
             );
         }
         f += &format!(
             "{}\n",
-            fences[1][(row, cols)].map_or_else(|| ' ', |v| if v { BOX_VERTICAL } else { CROSS })
+            get_edge(1, row, cols),
         );
     }
     for col in 0..cols {
         f += &format!(
             "{}{}",
             get_dot_char(rows, col),
-            fences[0][(rows, col)].map_or_else(|| ' ', |v| if v { BOX_HORIZONTAL } else { CROSS })
+            get_edge(0, rows, col),
         );
     }
     f += &format!("{}", get_dot_char(rows, cols));
@@ -119,7 +136,7 @@ impl fmt::Display for Board {
             "   {}\n",
             (0..self.task.cols()).fold("".to_string(), |acc, x| format!("{acc}{x:2}"))
         )?;
-        for (i, x) in print_board(&self.task, &self.fences).lines().enumerate() {
+        for (i, x) in print_board(&self.task, &self.fences, true).lines().enumerate() {
             write!(
                 f,
                 "{}",

@@ -1773,6 +1773,7 @@ name = "fences"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "colored",
  "divan",
  "either",
  "grid 0.13.0",
