@@ -1,6 +1,6 @@
+use colored::Colorize;
 use grid::Grid;
 use std::{collections::VecDeque, fmt};
-use colored::Colorize;
 
 const BOX_HORIZONTAL: char = '─';
 const BOX_VERTICAL: char = '│';
@@ -37,21 +37,42 @@ pub type Fences = [Grid<Fence>; 2];
 pub type Task = Grid<U2>;
 
 pub fn print_board(task: &Task, fences: &Fences, color: bool) -> String {
-    let paths = if color { get_paths(fences) } else { vec![] };
+    let paths = if color {
+        let mut paths = get_paths(fences);
+        paths.sort_by(|a, b| (b.len(), b[0]).cmp(&(a.len(), a[0])));
+        paths
+    } else {
+        vec![]
+    };
     let get_edge = |dir: usize, row, col| -> String {
         if let Some(edge) = fences[dir][(row, col)].0 {
             if edge {
-                let e = format!("{}",if dir == 1 {BOX_VERTICAL} else {BOX_HORIZONTAL});
+                let e = format!(
+                    "{}",
+                    if dir == 1 {
+                        BOX_VERTICAL
+                    } else {
+                        BOX_HORIZONTAL
+                    }
+                );
                 if let Some(color) = paths.iter().position(|r| r.contains(&(dir, row, col))) {
-                   format!("{}", e.color(["green","blue", "cyan"][color % 3]))
+                    format!(
+                        "{}",
+                        e.color(["white", "green", "yellow", "cyan", "purple", "red"][color % 6])
+                    )
                 } else {
                     e
                 }
+            } else {
+                if color {
+                    format!("{}", CROSS.to_string().truecolor(108, 108, 108))
+                } else {
+                    format!("{CROSS}")
+                }
             }
-            else {
-                if color {format!("{}",CROSS.to_string().red())} else {format!("{CROSS}")}
-            }
-        } else {" ".to_string()}
+        } else {
+            " ".to_string()
+        }
     };
 
     let (rows, cols) = task.size();
@@ -100,10 +121,7 @@ pub fn print_board(task: &Task, fences: &Fences, color: bool) -> String {
     for row in 0..rows {
         for col in 0..cols {
             f += &format!("{}", get_dot_char(row, col));
-            f += &format!(
-                "{}",
-                get_edge(0, row, col)
-            );
+            f += &format!("{}", get_edge(0, row, col));
         }
         f += &format!("{}\n", get_dot_char(row, cols));
         for col in 0..cols {
@@ -113,17 +131,10 @@ pub fn print_board(task: &Task, fences: &Fences, color: bool) -> String {
                 char::from(task[(row, col)].clone())
             );
         }
-        f += &format!(
-            "{}\n",
-            get_edge(1, row, cols),
-        );
+        f += &format!("{}\n", get_edge(1, row, cols),);
     }
     for col in 0..cols {
-        f += &format!(
-            "{}{}",
-            get_dot_char(rows, col),
-            get_edge(0, rows, col),
-        );
+        f += &format!("{}{}", get_dot_char(rows, col), get_edge(0, rows, col),);
     }
     f += &format!("{}", get_dot_char(rows, cols));
     f
@@ -133,20 +144,28 @@ impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "   {}\n",
+            "      {}\n",
             (0..self.task.cols()).fold("".to_string(), |acc, x| format!("{acc}{x:2}"))
         )?;
-        for (i, x) in print_board(&self.task, &self.fences, true).lines().enumerate() {
+        for (i, x) in print_board(&self.task, &self.fences, true)
+            .lines()
+            .enumerate()
+        {
             write!(
                 f,
                 "{}",
                 if i % 2 == 1 {
-                    format!("{:3}{x}\n", i / 2)
+                    format!("{:3} ║ {x} ║{0:3}\n", i / 2)
                 } else {
-                    format!("   {x}\n")
+                    format!("    ║ {x} ║\n")
                 }
             )?;
         }
+        write!(
+            f,
+            "      {}\n",
+            (0..self.task.cols()).fold("".to_string(), |acc, x| format!("{acc}{x:2}"))
+        )?;
         Ok(())
     }
 }
@@ -156,9 +175,11 @@ impl Board {
         let task = Grid::<U2>::from_vec(task.chars().map(U2::from).collect(), rows);
         let bound = task.cols() * (task.rows() + 1);
         Board {
-            fences: if let Some(sol) =
-                solution.map(|s| s.chars().map(Fence::from).collect::<Vec<Fence>>())
-            {
+            fences: if let Some(sol) = solution.map(|s| {
+                s.chars()
+                    .filter_map(|c| Fence::try_from(c).ok())
+                    .collect::<Vec<Fence>>()
+            }) {
                 [
                     Grid::<Fence>::from_vec(sol[0..bound].to_vec(), task.cols()),
                     Grid::<Fence>::from_vec(sol[bound..].to_vec(), task.cols() + 1),
@@ -183,7 +204,7 @@ impl Board {
             } else {
                 (1, (i - b) % (cols + 1), (i - b) / (cols + 1))
             };
-            self.fences[dir][(row, col)] = c.into();
+            self.fences[dir][(row, col)] = c.try_into().unwrap();
         }
     }
     #[inline]
@@ -232,6 +253,16 @@ impl Board {
     }
     pub fn moves(&self) -> &Vec<Move> {
         &self.moves
+    }
+    pub fn reset_to(&mut self, to: usize) -> anyhow::Result<()> {
+        if to > self.moves.len() {
+            anyhow::bail!("Invalid reset entry")
+        }
+        while self.moves.len() > to {
+            let e = self.moves.pop().unwrap();
+            self.fences[e.direction][e.idx].0 = None;
+        }
+        anyhow::Ok(())
     }
     // #[inline]
     // pub fn get_dot_fences(&self, idx: (usize, usize)) -> Vec<(usize, usize, usize)> {}

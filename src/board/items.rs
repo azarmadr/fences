@@ -66,13 +66,14 @@ impl From<U2> for char {
 #[derive(Clone, Copy, Default, PartialEq)]
 pub struct Fence(pub(crate) Option<bool>);
 
-impl From<char> for Fence {
-    fn from(value: char) -> Self {
+impl TryFrom<char> for Fence {
+    type Error = &'static str;
+    fn try_from(value: char) -> Result<Self, Self::Error> {
         match value {
-            '-' => Fence(Some(true)),
-            'x' => Fence(Some(false)),
-            '.' => Fence(None),
-            _ => unreachable!(),
+            '-' => Ok(Fence(Some(true))),
+            'x' => Ok(Fence(Some(false))),
+            '.' => Ok(Fence(None)),
+            _ => Err("Not a valid char for fence"),
         }
     }
 }

@@ -59,12 +59,12 @@ impl<'de> Deserialize<'de> for BoardRule {
             Grid::from_vec(task.replace('\n', "").chars().map(U2::from).collect(), cols);
         let size = task.size();
         let boundary = (size.0 + 1) * size.1;
-        let fences: Vec<Fence> = fences.replace('_', "").chars().map(Fence::from).collect();
+        let fences: Vec<Fence> = fences.chars().filter_map(|c| c.try_into().ok()).collect();
         let fences: Fences = [
             Grid::from_vec(fences[0..boundary].to_vec(), task.cols()),
             Grid::from_vec(fences[boundary..].to_vec(), task.cols() + 1),
         ];
-        let solution: Vec<Fence> = solution.replace('_', "").chars().map(Fence::from).collect();
+        let solution: Vec<Fence> = solution.chars().filter_map(|c| c.try_into().ok()).collect();
         let solution: Fences = [
             Grid::from_vec(solution[0..boundary].to_vec(), task.cols()),
             Grid::from_vec(solution[boundary..].to_vec(), task.cols() + 1),

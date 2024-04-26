@@ -35,6 +35,25 @@
 - task: '33'
   fences: .......
   solution: ....---
+- task: "1 \n  "
+  fences:   ..
+            .-
+            .. |
+            ...
+            .x.
+  solution: x. .. .. | x.. ...
+- task: "1 \n  "
+  fences:   .. .x .. | ... .-.
+  solution: x. .. .. | x.. ...
+    #- task: "1 \n  " # possibly mirror of above
+    #fences: ...-_...
+    #solution: -..._x..
+- task: '3 '
+  fences: .-.._...
+  solution: ..-.-..
+- task: '3 ' # possibly mirror of above
+  fences: ...-_...
+  solution: -..._-..
 
 - task: "  \n  "
   fences: .._-._.._.-._...
@@ -140,3 +159,6 @@
   fences: -._..
   solution: .._-.
   corner: true
+- task: " "
+  fences: --_-.
+  solution: .._.x
