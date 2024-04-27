@@ -45,7 +45,7 @@ impl From<char> for U2 {
             '1' => U2(Some([true, false])),
             '2' => U2(Some([false, true])),
             '3' => U2(Some([true, true])),
-            ' ' => U2(None),
+            ' ' | '_' | '-' => U2(None),
             _ => unreachable!("U2 can't be guessed from {value}"),
         }
     }

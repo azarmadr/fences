@@ -218,10 +218,12 @@ impl Board {
     pub fn solution(&self) -> String {
         self.fences
             .iter()
-            .flat_map(|f| f.iter().map(|e| match e.0 {
-                Some(true) => 'y',
-                _ => 'n',
-            }))
+            .flat_map(|f| {
+                f.iter().map(|e| match e.0 {
+                    Some(true) => 'y',
+                    _ => 'n',
+                })
+            })
             .collect()
     }
     #[inline]
@@ -242,24 +244,24 @@ impl Board {
     pub fn task(&self) -> &Grid<U2> {
         &self.task
     }
-    pub fn play(
-        &mut self,
-        direction: usize,
-        idx: (usize, usize),
-        value: bool,
-        name: impl Into<String>,
-    ) {
-        if self.fences[direction][idx].is_some_and(|x| x == value) {
-            log::trace!("Trying to overwrite an existing fence at [{direction}][{idx:?}]");
-            return;
+    pub fn play(&mut self, direction: usize, idx: (usize, usize), value: bool, name: &str) {
+        if let Some(curr) = self.fences[direction][idx].0 {
+            if curr == value {
+                log::trace!("Trying to overwrite an existing fence at [{direction}][{idx:?}]");
+                return;
+            } else {
+                println!("Overwriting an existing fence {curr} with {value} by {name}")
+            }
         }
         *self.fences[direction][idx] = Some(value);
-        self.moves.push(Move {
+        let m = Move {
             direction,
             idx,
             value,
             name: name.into(),
-        });
+        };
+        log::trace!("{:?}\n{}{self}", (m.direction, m.idx, m.value), m.name);
+        self.moves.push(m);
     }
     pub fn edge(&self, e: &Edge) -> &Fence {
         &self.fences[e.0][(e.1, e.2)]
@@ -445,11 +447,12 @@ pub fn get_paths(fences: &Fences) -> Vec<Vec<(usize, usize, usize)>> {
 impl core::str::FromStr for Board {
     type Err = &'static str;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mat :Vec<_>= s.lines().collect();
-        if mat[0].contains('#') {
-            let head: Vec<_> = mat[0].split('#').collect();
-            let cols: usize = head[0].parse().unwrap();
-            let task = Grid::<U2>::from_vec(head[1].chars().map(U2::from).collect(), cols);
+        if s.contains('#') {
+            let mut mat = s.lines();
+            let mut head = mat.next().expect("Header missing").split('#');
+            let cols: usize = head.next().unwrap().parse().unwrap();
+            let task =
+                Grid::<U2>::from_vec(head.next().unwrap().chars().map(U2::from).collect(), cols);
             let mut board = Board {
                 fences: [
                     Grid::<Fence>::new(task.rows() + 1, task.cols()),
@@ -458,29 +461,41 @@ impl core::str::FromStr for Board {
                 task,
                 moves: vec![],
             };
-            mat[1..].iter().take_while(|l| l.starts_with(|c| matches!(c, '0' | '1')))
-                .for_each(|l| {
+            for l in mat {
                 if l.is_empty() {
-                    return;
+                    continue;
                 }
-                let mut m = l.split_whitespace();
-                let dir = m.next().unwrap().parse().unwrap();
-                let row = m.next().unwrap().parse().unwrap();
-                let col = m.next().unwrap().parse().unwrap();
-                let val = match m.next().unwrap() {
-                    "y" | "-" => true,
-                    "n" | "x" => false,
-                    _ => unreachable!("Invalid value"),
-                };
-                board.play(dir, (row, col), val, "");
-            });
-            if let Some(solution) = mat.last() {
-                board.set_solution(solution)
+                if l.contains(' ') {
+                    let mut m = l.split_whitespace();
+                    let dir = m.next().unwrap().parse().unwrap();
+                    let row = m.next().unwrap().parse().unwrap();
+                    let col = m.next().unwrap().parse().unwrap();
+                    let val = match m.next().unwrap() {
+                        "y" | "-" => true,
+                        "n" | "x" => false,
+                        _ => unreachable!("Invalid value"),
+                    };
+                    board.play(dir, (row, col), val, "");
+                } else {
+                    board.set_solution(l)
+                }
             }
             Ok(board)
         } else {
-            assert!(mat.iter().all(|l| l.len() == mat[0].len()));
-            Err("implemneting...")
+            let mat: Vec<_> = s.lines().collect();
+            assert!(mat.iter().all(|l| l.len() == mat.last().unwrap().len()));
+            let task =
+                Grid::<U2>::from_vec(mat.join("").chars().map(U2::from).collect(), mat[0].len());
+            let board = Board {
+                fences: [
+                    Grid::<Fence>::new(task.rows() + 1, task.cols()),
+                    Grid::<Fence>::new(task.rows(), task.cols() + 1),
+                ],
+                task,
+                moves: vec![],
+            };
+
+            Ok(board)
         }
     }
 }

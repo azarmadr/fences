@@ -2,6 +2,10 @@
   fences: ....
   solution: xxxx
 - task: '1'
+  fences: ....
+  solution: x.x.
+  corner: true
+- task: '1'
   solution: -...
   fences: .xxx
 - task: '1'
@@ -19,6 +23,10 @@
 - task: '2'
   fences: .._xx
   solution: --_..
+- task: "2 \n  "
+  fences:   .. .. .. ... ...
+  solution: .- .. .. ... -..
+  corner: true
 - task: '3'
   solution: ...x
   fences: ---.
@@ -30,8 +38,8 @@
   solution: -.-.
   corner: true
 - task: " 3\n  "
-  fences: .._x._.._..._.x.
-  solution: .._.-_.._.-._...
+  fences:   .. x. .. ... .x.
+  solution: .. .- .. .-. ...
 - task: '33'
   fences: .......
   solution: ....---
@@ -48,6 +56,14 @@
     #- task: "1 \n  " # possibly mirror of above
     #fences: ...-_...
     #solution: -..._x..
+- task: ' 3'
+  fences: x... ...
+  solution: .-...-.
+  edge: true
+- task: '3 '
+  fences: .x.. ...
+  solution: -....-.
+  edge: true
 - task: '3 '
   fences: .-.._...
   solution: ..-.-..
@@ -77,9 +93,6 @@
   fences: ..xx.._.x....
   solution: ......_....x.
 
-- task: " 3\n0 "
-  fences: ......_......
-  solution: ...-.._.-....
 - task: |-
     3 
      3
@@ -159,6 +172,3 @@
   fences: -._..
   solution: .._-.
   corner: true
-- task: " "
-  fences: --_-.
-  solution: .._.x

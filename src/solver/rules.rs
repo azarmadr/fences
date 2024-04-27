@@ -188,7 +188,7 @@ impl BoardRule {
                 self.solution[dir]
                     .indexed_iter()
                     .filter_map(|x| x.1.map(|v| (x.0, v)))
-                    .for_each(|(i, x)| board.play(dir, add_idx(i, idx), x, format!("{self}")))
+                    .for_each(|(i, x)| board.play(dir, add_idx(i, idx), x, &format!("{self}")))
             }
             Some(false)
         } else {
