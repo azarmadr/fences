@@ -40,15 +40,27 @@
 - task: " 3\n  "
   fences:   .. x. .. ... .x.
   solution: .. .- .. .-. ...
-- task: '33'
-  fences: .......
-  solution: ....---
+- task: "33\n  "
+  fences:   .. .. .. ... ...
+  solution: .. .. .. --- .x.
+- task: " 1"
+  fences:   x. .. | ...
+  solution: .x .. | .x.
+  edge: true
+- task: "1 "
+  fences:   .x .. | ...
+  solution: x. .. | .x.
+  edge: true
+- task: " 1"
+  fences:   -. .. | ...
+  solution: .. .x | ..x
+  edge: true
+- task: "1 "
+  fences:   .- .. | ...
+  solution: .. x. | x..
+  edge: true
 - task: "1 \n  "
-  fences:   ..
-            .-
-            .. |
-            ...
-            .x.
+  fences:   .. .- .. | ... .x.
   solution: x. .. .. | x.. ...
 - task: "1 \n  "
   fences:   .. .x .. | ... .-.

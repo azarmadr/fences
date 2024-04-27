@@ -1,50 +1,26 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(PartialEq, Clone, Serialize, Deserialize, Default)]
-pub struct U2(pub(crate) Option<[bool; 2]>);
+#[derive(PartialEq, Clone, Serialize, Deserialize, Default, Debug)]
+pub struct U2(pub(crate) Option<u8>);
 impl U2 {
     #[inline]
     pub fn is_ok(&self, xs: usize, dashes: usize) -> bool {
         match self.0 {
             None => true,
-            Some(x) => {
-                let mut val = 0;
-                if x[0] {
-                    val += 1
-                }
-                if x[1] {
-                    val += 2
-                }
-                dashes <= val && xs <= 4 - val
-            }
+            Some(x) => dashes as u8 <= x && xs as u8 <= 4u8 - x
         }
-    }
-}
-
-impl std::ops::Deref for U2 {
-    type Target = Option<[bool; 2]>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl fmt::Debug for U2 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("U2")
-            .field(&char::from(self.clone()))
-            .finish()
     }
 }
 
 impl From<char> for U2 {
     fn from(value: char) -> Self {
         match value {
-            '0' => U2(Some([false; 2])),
-            '1' => U2(Some([true, false])),
-            '2' => U2(Some([false, true])),
-            '3' => U2(Some([true, true])),
+            '0' => U2(Some(0)),
+            '1' => U2(Some(1)),
+            '2' => U2(Some(2)),
+            '3' => U2(Some(3)),
+            '4' => U2(Some(4)),
             ' ' | '_' | '-' => U2(None),
             _ => unreachable!("U2 can't be guessed from {value}"),
         }
@@ -54,11 +30,13 @@ impl From<char> for U2 {
 impl From<U2> for char {
     fn from(value: U2) -> char {
         match value {
-            U2(Some([false, false])) => '0',
-            U2(Some([true, false])) => '1',
-            U2(Some([false, true])) => '2',
-            U2(Some([true, true])) => '3',
+            U2(Some(0)) => '0',
+            U2(Some(1)) => '1',
+            U2(Some(2)) => '2',
+            U2(Some(3)) => '3',
+            U2(Some(4)) => '4',
             U2(None) => ' ',
+            _ => unreachable!(),
         }
     }
 }

@@ -157,7 +157,7 @@ impl BoardRule {
         let task_match = self
             .task
             .indexed_iter()
-            .filter(|x| x.1.is_some())
+            .filter(|x| x.1.0.is_some())
             .all(|(i, x)| *x == board.task()[add_idx(i, idx)])
             && [0usize, 1].iter().any(|&dir| {
                 self.solution[dir]

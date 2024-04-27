@@ -171,30 +171,6 @@ impl fmt::Display for Board {
 }
 
 impl Board {
-    pub fn from_task_string(cols: usize, task: &str, solution: Option<&str>) -> Self {
-        let task = Grid::<U2>::from_vec(task.chars().map(U2::from).collect(), cols);
-        let bound = task.cols() * (task.rows() + 1);
-        Board {
-            fences: if let Some(sol) = solution.map(|s| {
-                s.chars()
-                    .filter_map(|c| Fence::try_from(c).ok())
-                    .collect::<Vec<Fence>>()
-            }) {
-                [
-                    Grid::<Fence>::from_vec(sol[0..bound].to_vec(), task.cols()),
-                    Grid::<Fence>::from_vec(sol[bound..].to_vec(), task.cols() + 1),
-                ]
-            } else {
-                [
-                    Grid::<Fence>::new(task.rows() + 1, task.cols()),
-                    Grid::<Fence>::new(task.rows(), task.cols() + 1),
-                ]
-            },
-            task,
-            moves: vec![],
-        }
-    }
-
     pub fn set_solution(&mut self, solution: &str) {
         self.fences
             .iter_mut()
@@ -337,8 +313,9 @@ impl Board {
                 }
             }
         }
+
         if self.task.indexed_iter().all(|((row, col), val)| {
-            if val.is_none() {
+            if val.0.is_none() {
                 return true;
             }
             let task = &mut Count { xs: 0, dashes: 0 };
@@ -348,19 +325,16 @@ impl Board {
             task.incr(self.fences[1][(row, col + 1)].0);
             #[cfg(test)]
             println!("Task at {:?} -> {task:?}", (row, col));
-            self.task[(row, col)].0.is_some_and(|x| {
-                let mut val = 0;
-                if x[0] {
-                    val += 1
-                }
-                if x[1] {
-                    val += 2
-                }
-                val == task.dashes
-            })
+            self.task[(row, col)].0.is_some_and(|x| task.dashes as u8 == x)
         }) && has_one_path_and_is_circular(&self.fences)
         {
             return Some(true);
+        } else {
+        let paths = get_paths(&self.fences);
+        if paths.iter()
+            .any(|p| p.len() > 2 && are_linked(&p[0], p.last().unwrap())) {
+                return Some(false)
+            }
         }
         None
     }
@@ -465,7 +439,7 @@ impl core::str::FromStr for Board {
                 if l.is_empty() {
                     continue;
                 }
-                if l.contains(' ') {
+                if l.starts_with(|c| matches!(c, '0' | '1')) {
                     let mut m = l.split_whitespace();
                     let dir = m.next().unwrap().parse().unwrap();
                     let row = m.next().unwrap().parse().unwrap();
@@ -500,27 +474,43 @@ impl core::str::FromStr for Board {
     }
 }
 
+mod tests {
+    use super::*;
 #[test]
 fn check_board_result() {
-    assert_eq!(Board::from_task_string(2, "32  ", None).result(), None);
+    assert_eq!("2#32  ".parse::<Board>().unwrap().result(), None);
     assert_eq!(
-        Board::from_task_string(2, "32  ", Some("...-...-....")).result(),
+        "2#32  \n...-...-....".parse::<Board>().unwrap().result(),
         None
     );
     assert_eq!(
-        Board::from_task_string(2, "32  ", Some("..--...-....")).result(),
+        "2#32  \n..--...-....".parse::<Board>().unwrap().result(),
         Some(false)
     );
     assert_eq!(
-        Board::from_task_string(2, "32  ", Some("..x-...x....")).result(),
+        "2#32  \n..x-...x....".parse::<Board>().unwrap().result(),
         Some(false)
     );
     assert_eq!(
-        Board::from_task_string(2, "32  ", Some("-.-...--....")).result(),
+        "2#32  \n-.-...--....".parse::<Board>().unwrap().result(),
         Some(false)
     );
     assert_eq!(
-        Board::from_task_string(2, "32  ", Some("---..--.-.--")).result(),
+        "2#32  \n---..--.-.--".parse::<Board>().unwrap().result(),
         Some(true)
     );
+
+    assert_eq!(
+        "3#4  \n..-..-..--".parse::<Board>().unwrap().result(),
+        Some(false)
+    );
+    assert_eq!(
+        "3#4  \n-.--.-----".parse::<Board>().unwrap().result(),
+        Some(false)
+    );
+    assert_eq!(
+        "3#4  \n-..-..--..".parse::<Board>().unwrap().result(),
+        Some(true)
+    );
+}
 }

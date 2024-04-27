@@ -41,7 +41,7 @@ pub fn solve2(board: &mut Board) {
         .map(|&k| (k, (0..rules.len()).collect::<Vec<_>>()))
         .collect();
     loop {
-        log::info!("Solving..");
+        log::trace!("Solving..");
         let mut is_done = true;
         for &k in keys.iter() {
             if let Some(idxs) = hm.get_mut(&k) {
