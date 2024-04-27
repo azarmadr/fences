@@ -70,8 +70,8 @@ impl TryFrom<char> for Fence {
     type Error = &'static str;
     fn try_from(value: char) -> Result<Self, Self::Error> {
         match value {
-            '-' => Ok(Fence(Some(true))),
-            'x' => Ok(Fence(Some(false))),
+            'y' | '-' => Ok(Fence(Some(true))),
+            'n' | 'x' => Ok(Fence(Some(false))),
             '.' => Ok(Fence(None)),
             _ => Err("Not a valid char for fence"),
         }

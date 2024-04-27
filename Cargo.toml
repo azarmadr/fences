@@ -1,4 +1,4 @@
-workspace = { members = ["examples/bevy-game"] }
+# workspace = { members = ["examples/bevy-game"] }
 [package]
 name = "fences"
 version = "0.1.0"

@@ -171,8 +171,8 @@ impl fmt::Display for Board {
 }
 
 impl Board {
-    pub fn from_task_string(rows: usize, task: &str, solution: Option<&str>) -> Self {
-        let task = Grid::<U2>::from_vec(task.chars().map(U2::from).collect(), rows);
+    pub fn from_task_string(cols: usize, task: &str, solution: Option<&str>) -> Self {
+        let task = Grid::<U2>::from_vec(task.chars().map(U2::from).collect(), cols);
         let bound = task.cols() * (task.rows() + 1);
         Board {
             fences: if let Some(sol) = solution.map(|s| {
@@ -196,6 +196,12 @@ impl Board {
     }
 
     pub fn set_solution(&mut self, solution: &str) {
+        self.fences
+            .iter_mut()
+            .flat_map(|f| f.iter_mut())
+            .zip(solution.chars())
+            .for_each(|(f, v)| *f = v.try_into().unwrap());
+        /*
         let (cols, rows) = (self.cols(), self.rows());
         let b = cols * (rows + 1);
         for (i, c) in solution.chars().enumerate() {
@@ -206,17 +212,28 @@ impl Board {
             };
             self.fences[dir][(row, col)] = c.try_into().unwrap();
         }
+        */
+        log::info!("set_solution\n{self}");
+    }
+    pub fn solution(&self) -> String {
+        self.fences
+            .iter()
+            .flat_map(|f| f.iter().map(|e| match e.0 {
+                Some(true) => 'y',
+                _ => 'n',
+            }))
+            .collect()
     }
     #[inline]
     pub fn size(&self) -> (usize, usize) {
         self.task.size()
     }
     #[inline]
-    fn rows(&self) -> usize {
+    pub fn rows(&self) -> usize {
         self.task.rows()
     }
     #[inline]
-    fn cols(&self) -> usize {
+    pub fn cols(&self) -> usize {
         self.task.cols()
     }
     pub fn fences(&self) -> &Fences {
@@ -225,13 +242,6 @@ impl Board {
     pub fn task(&self) -> &Grid<U2> {
         &self.task
     }
-    /*
-    pub fn get_solution(&self) -> String {
-        self.fences
-            .iter()
-            .fold(String::new(), |a, x| a + "\n" + &x.to_string())
-    }
-    */
     pub fn play(
         &mut self,
         direction: usize,
@@ -250,6 +260,9 @@ impl Board {
             value,
             name: name.into(),
         });
+    }
+    pub fn edge(&self, e: &Edge) -> &Fence {
+        &self.fences[e.0][(e.1, e.2)]
     }
     pub fn moves(&self) -> &Vec<Move> {
         &self.moves
@@ -352,7 +365,7 @@ impl Board {
 }
 
 type Edge = (usize, usize, usize);
-fn are_linked(l: &Edge, r: &Edge) -> bool {
+pub fn are_linked(l: &Edge, r: &Edge) -> bool {
     if r.0 != l.0 {
         let (r, l) = if r.0 == 0 { (r, l) } else { (l, r) };
         [(0, 0), (0, -1), (1, -1), (1, 0)]
@@ -372,7 +385,7 @@ fn has_one_path_and_is_circular(fences: &Fences) -> bool {
     let paths = get_paths(fences);
     paths.len() == 1 && are_linked(&paths[0][0], paths[0].last().unwrap())
 }
-fn get_paths(fences: &Fences) -> Vec<Vec<(usize, usize, usize)>> {
+pub fn get_paths(fences: &Fences) -> Vec<Vec<(usize, usize, usize)>> {
     let mut dashes: Vec<_> = (0usize..2)
         .into_iter()
         .flat_map(|dir| {
@@ -427,6 +440,49 @@ fn get_paths(fences: &Fences) -> Vec<Vec<(usize, usize, usize)>> {
             .join("\n")
     );
     ret
+}
+
+impl core::str::FromStr for Board {
+    type Err = &'static str;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mat :Vec<_>= s.lines().collect();
+        if mat[0].contains('#') {
+            let head: Vec<_> = mat[0].split('#').collect();
+            let cols: usize = head[0].parse().unwrap();
+            let task = Grid::<U2>::from_vec(head[1].chars().map(U2::from).collect(), cols);
+            let mut board = Board {
+                fences: [
+                    Grid::<Fence>::new(task.rows() + 1, task.cols()),
+                    Grid::<Fence>::new(task.rows(), task.cols() + 1),
+                ],
+                task,
+                moves: vec![],
+            };
+            mat[1..].iter().take_while(|l| l.starts_with(|c| matches!(c, '0' | '1')))
+                .for_each(|l| {
+                if l.is_empty() {
+                    return;
+                }
+                let mut m = l.split_whitespace();
+                let dir = m.next().unwrap().parse().unwrap();
+                let row = m.next().unwrap().parse().unwrap();
+                let col = m.next().unwrap().parse().unwrap();
+                let val = match m.next().unwrap() {
+                    "y" | "-" => true,
+                    "n" | "x" => false,
+                    _ => unreachable!("Invalid value"),
+                };
+                board.play(dir, (row, col), val, "");
+            });
+            if let Some(solution) = mat.last() {
+                board.set_solution(solution)
+            }
+            Ok(board)
+        } else {
+            assert!(mat.iter().all(|l| l.len() == mat[0].len()));
+            Err("implemneting...")
+        }
+    }
 }
 
 #[test]

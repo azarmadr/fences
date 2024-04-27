@@ -1,4 +1,5 @@
 use crate::{sub_idx, Board};
+use crate::board::get_paths;
 use std::collections::HashMap;
 mod rules;
 
@@ -55,6 +56,27 @@ pub fn solve2(board: &mut Board) {
                 }
             }
         }
+
+        let paths = get_paths(board.fences());
+        if paths.len() > 1 {
+            paths.iter().for_each(|p| {
+                let (f, l) = (p[0], p.last().unwrap());
+                if f.0 == l.0 && if f.0 == 0 {
+                    f.2 == l.2 && f.1.abs_diff(l.1) == 1
+                } else {
+                    f.1 == l.1 && f.2.abs_diff(l.2) == 1
+                } {
+                    let possible_edges = if f.0 == 0 {
+                        [(1, f.1.min(l.1), f.2), (1, f.1.min(l.1), f.2 + 1)]
+                    } else {
+                        [(0, f.1, f.2.min(l.2)), (0, f.1 - 1, f.2.min(l.2))]
+                    };
+                    possible_edges.iter().for_each(|e| if board.edge(e).is_none(){
+                    board.play(e.0, (e.1, e.2), false, "open closed box")
+                    })
+                }})}
+
+
         if is_done {
             break;
         }
