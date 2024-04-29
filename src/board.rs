@@ -25,7 +25,7 @@ pub struct Move {
     pub value: bool,
     pub name: String,
 }
-pub use self::items::{Fence, U2};
+pub use items::Fence;
 #[derive(Debug)]
 pub struct Board {
     fences: Fences,
@@ -34,7 +34,7 @@ pub struct Board {
 }
 
 pub type Fences = [Grid<Fence>; 2];
-pub type Task = Grid<U2>;
+pub type Task = Grid<Option<u8>>;
 
 pub fn print_board(task: &Task, fences: &Fences, color: bool) -> String {
     let paths = if color {
@@ -128,7 +128,7 @@ pub fn print_board(task: &Task, fences: &Fences, color: bool) -> String {
             f += &format!(
                 "{}{}",
                 get_edge(1, row, col),
-                char::from(task[(row, col)].clone())
+                task[(row, col)].map_or(' ', char::from)
             );
         }
         f += &format!("{}\n", get_edge(1, row, cols),);
@@ -177,19 +177,26 @@ impl Board {
             .flat_map(|f| f.iter_mut())
             .zip(solution.chars())
             .for_each(|(f, v)| *f = v.try_into().unwrap());
-        /*
-        let (cols, rows) = (self.cols(), self.rows());
-        let b = cols * (rows + 1);
-        for (i, c) in solution.chars().enumerate() {
-            let (dir, row, col) = if i < b {
-                (0, i % cols, i / cols)
-            } else {
-                (1, (i - b) % (cols + 1), (i - b) / (cols + 1))
-            };
-            self.fences[dir][(row, col)] = c.try_into().unwrap();
-        }
-        */
         log::info!("set_solution\n{self}");
+    }
+    pub fn play(&mut self, direction: usize, idx: (usize, usize), value: bool, name: &str) {
+        if let Some(curr) = self.fences[direction][idx].0 {
+            if curr == value {
+                log::trace!("Trying to overwrite an existing fence at [{direction}][{idx:?}]");
+                return;
+            } else {
+                log::warn!("Overwriting an existing fence {curr} with {value} by {name}")
+            }
+        }
+        *self.fences[direction][idx] = Some(value);
+        let m = Move {
+            direction,
+            idx,
+            value,
+            name: name.into(),
+        };
+        log::trace!("{:?}\n{}{self}", (m.direction, m.idx, m.value), m.name);
+        self.moves.push(m);
     }
     pub fn solution(&self) -> String {
         self.fences
@@ -217,27 +224,8 @@ impl Board {
     pub fn fences(&self) -> &Fences {
         &self.fences
     }
-    pub fn task(&self) -> &Grid<U2> {
+    pub fn task(&self) -> &Task {
         &self.task
-    }
-    pub fn play(&mut self, direction: usize, idx: (usize, usize), value: bool, name: &str) {
-        if let Some(curr) = self.fences[direction][idx].0 {
-            if curr == value {
-                log::trace!("Trying to overwrite an existing fence at [{direction}][{idx:?}]");
-                return;
-            } else {
-                println!("Overwriting an existing fence {curr} with {value} by {name}")
-            }
-        }
-        *self.fences[direction][idx] = Some(value);
-        let m = Move {
-            direction,
-            idx,
-            value,
-            name: name.into(),
-        };
-        log::trace!("{:?}\n{}{self}", (m.direction, m.idx, m.value), m.name);
-        self.moves.push(m);
     }
     pub fn edge(&self, e: &Edge) -> &Fence {
         &self.fences[e.0][(e.1, e.2)]
@@ -308,14 +296,16 @@ impl Board {
                 task.incr(self.fences[1][(row, col + 1)].0);
                 #[cfg(test)]
                 println!("Task at {:?} -> {task:?}", (row, col));
-                if !self.task[(row, col)].is_ok(task.xs, task.dashes) {
+                if self.task[(row, col)].map_or(false, |x| {
+                    task.dashes as u8 <= x && task.xs as u8 <= 4u8 - x
+                }) {
                     return Some(false);
                 }
             }
         }
 
         if self.task.indexed_iter().all(|((row, col), val)| {
-            if val.0.is_none() {
+            if val.is_none() {
                 return true;
             }
             let task = &mut Count { xs: 0, dashes: 0 };
@@ -325,22 +315,24 @@ impl Board {
             task.incr(self.fences[1][(row, col + 1)].0);
             #[cfg(test)]
             println!("Task at {:?} -> {task:?}", (row, col));
-            self.task[(row, col)].0.is_some_and(|x| task.dashes as u8 == x)
+            self.task[(row, col)].is_some_and(|x| task.dashes as u8 == x)
         }) && has_one_path_and_is_circular(&self.fences)
         {
             return Some(true);
         } else {
-        let paths = get_paths(&self.fences);
-        if paths.iter()
-            .any(|p| p.len() > 2 && are_linked(&p[0], p.last().unwrap())) {
-                return Some(false)
+            let paths = get_paths(&self.fences);
+            if paths
+                .iter()
+                .any(|p| p.len() > 2 && are_linked(&p[0], p.last().unwrap()))
+            {
+                return Some(false);
             }
         }
         None
     }
 }
 
-type Edge = (usize, usize, usize);
+pub type Edge = (usize, usize, usize);
 pub fn are_linked(l: &Edge, r: &Edge) -> bool {
     if r.0 != l.0 {
         let (r, l) = if r.0 == 0 { (r, l) } else { (l, r) };
@@ -425,8 +417,14 @@ impl core::str::FromStr for Board {
             let mut mat = s.lines();
             let mut head = mat.next().expect("Header missing").split('#');
             let cols: usize = head.next().unwrap().parse().unwrap();
-            let task =
-                Grid::<U2>::from_vec(head.next().unwrap().chars().map(U2::from).collect(), cols);
+            let task = Task::from_vec(
+                head.next()
+                    .unwrap()
+                    .chars()
+                    .map(|x| x.to_string().parse().ok())
+                    .collect(),
+                cols,
+            );
             let mut board = Board {
                 fences: [
                     Grid::<Fence>::new(task.rows() + 1, task.cols()),
@@ -458,8 +456,13 @@ impl core::str::FromStr for Board {
         } else {
             let mat: Vec<_> = s.lines().collect();
             assert!(mat.iter().all(|l| l.len() == mat.last().unwrap().len()));
-            let task =
-                Grid::<U2>::from_vec(mat.join("").chars().map(U2::from).collect(), mat[0].len());
+            let task = Task::from_vec(
+                mat.join("")
+                    .chars()
+                    .map(|x| x.to_string().parse().ok())
+                    .collect(),
+                mat[0].len(),
+            );
             let board = Board {
                 fences: [
                     Grid::<Fence>::new(task.rows() + 1, task.cols()),
@@ -474,43 +477,44 @@ impl core::str::FromStr for Board {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
-#[test]
-fn check_board_result() {
-    assert_eq!("2#32  ".parse::<Board>().unwrap().result(), None);
-    assert_eq!(
-        "2#32  \n...-...-....".parse::<Board>().unwrap().result(),
-        None
-    );
-    assert_eq!(
-        "2#32  \n..--...-....".parse::<Board>().unwrap().result(),
-        Some(false)
-    );
-    assert_eq!(
-        "2#32  \n..x-...x....".parse::<Board>().unwrap().result(),
-        Some(false)
-    );
-    assert_eq!(
-        "2#32  \n-.-...--....".parse::<Board>().unwrap().result(),
-        Some(false)
-    );
-    assert_eq!(
-        "2#32  \n---..--.-.--".parse::<Board>().unwrap().result(),
-        Some(true)
-    );
+    #[test]
+    fn check_board_result() {
+        assert_eq!("2#32  ".parse::<Board>().unwrap().result(), None);
+        assert_eq!(
+            "2#32  \n...-...-....".parse::<Board>().unwrap().result(),
+            None
+        );
+        assert_eq!(
+            "2#32  \n..--...-....".parse::<Board>().unwrap().result(),
+            Some(false)
+        );
+        assert_eq!(
+            "2#32  \n..x-...x....".parse::<Board>().unwrap().result(),
+            Some(false)
+        );
+        assert_eq!(
+            "2#32  \n-.-...--....".parse::<Board>().unwrap().result(),
+            Some(false)
+        );
+        assert_eq!(
+            "2#32  \n---..--.-.--".parse::<Board>().unwrap().result(),
+            Some(true)
+        );
 
-    assert_eq!(
-        "3#4  \n..-..-..--".parse::<Board>().unwrap().result(),
-        Some(false)
-    );
-    assert_eq!(
-        "3#4  \n-.--.-----".parse::<Board>().unwrap().result(),
-        Some(false)
-    );
-    assert_eq!(
-        "3#4  \n-..-..--..".parse::<Board>().unwrap().result(),
-        Some(true)
-    );
-}
+        assert_eq!(
+            "3#4  \n..-..-..--".parse::<Board>().unwrap().result(),
+            Some(false)
+        );
+        assert_eq!(
+            "3#4  \n-.--.-----".parse::<Board>().unwrap().result(),
+            Some(false)
+        );
+        assert_eq!(
+            "3#4  \n-..-..--..".parse::<Board>().unwrap().result(),
+            Some(true)
+        );
+    }
 }

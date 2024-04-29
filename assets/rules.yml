@@ -184,3 +184,14 @@
   fences: -._..
   solution: .._-.
   corner: true
+- task: |-
+    3 
+     2
+  fences:   .....x ... ...
+  solution: ...... ... ..-
+- task: |-
+    2
+    3
+    1
+  fences:   .... .. .. ..
+  solution: ..-. .. .. x.

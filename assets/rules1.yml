@@ -1,0 +1,12 @@
+0:
+  - fences: ....
+    solution: xxxx
+1:
+  - fences: ....
+    solution: x.x.
+    corner: true
+  - solution: -...
+    fences: .xxx
+"2\n3\n1":
+  - fences:   .... .. .. ..
+    solution: ..-. .. .. x.

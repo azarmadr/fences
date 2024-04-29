@@ -1,6 +1,6 @@
 use crate::{
     add_idx,
-    board::{print_board, Fence, Fences, Task, U2},
+    board::{print_board, Fence, Fences, Task},
     sub_idx, Board,
 };
 use grid::Grid;
@@ -9,7 +9,7 @@ use serde_yaml;
 use std::collections::HashSet;
 
 #[derive(Debug, Clone)]
-pub(crate) enum TaskType {
+pub enum TaskType {
     Corner(usize),
     Edge(usize),
     None,
@@ -17,7 +17,7 @@ pub(crate) enum TaskType {
 
 #[derive(Debug, Clone)]
 pub struct BoardRule {
-    pub(crate) task: Task,
+    pub task: Task,
     pub(crate) variant: TaskType,
     pub(crate) fences: Fences,
     pub(crate) solution: Fences,
@@ -55,8 +55,13 @@ impl<'de> Deserialize<'de> for BoardRule {
             )
         }
         let cols = task.lines().last().unwrap().chars().count();
-        let task: Task =
-            Grid::from_vec(task.replace('\n', "").chars().map(U2::from).collect(), cols);
+        let task: Task = Grid::from_vec(
+            task.replace('\n', "")
+                .chars()
+                .map(|x| x.to_string().parse().ok())
+                .collect(),
+            cols,
+        );
         let size = task.size();
         let boundary = (size.0 + 1) * size.1;
         let fences: Vec<Fence> = fences.chars().filter_map(|c| c.try_into().ok()).collect();
@@ -94,7 +99,7 @@ impl BoardRule {
             variant,
         } = self;
         [
-            task.iter().map(|x| char::from(x.clone())).collect(),
+            task.iter().map(|x| x.map_or(' ', char::from)).collect(),
             fences[0].iter().map(|&x| char::from(x)).collect(),
             fences[1].iter().map(|&x| char::from(x)).collect(),
             solution[0].iter().map(|&x| char::from(x)).collect(),
@@ -141,6 +146,7 @@ impl BoardRule {
     }
     pub fn apply_at(&self, board: &mut Board, idx: (usize, usize)) -> Option<bool> {
         let size = self.task.size();
+        if board.cols() < size.1 || board.rows() < size.0 { return None }
         let bounds = sub_idx(board.size(), size);
         if idx.0 > bounds.0
             || idx.1 > bounds.1
@@ -157,13 +163,13 @@ impl BoardRule {
         let task_match = self
             .task
             .indexed_iter()
-            .filter(|x| x.1.0.is_some())
+            .filter(|x| x.1.is_some())
             .all(|(i, x)| *x == board.task()[add_idx(i, idx)])
             && [0usize, 1].iter().any(|&dir| {
                 self.solution[dir]
                     .indexed_iter()
                     .filter_map(|x| x.1.map(|_| x.0))
-                    .any(|i| board.fences()[dir][add_idx(i, idx)].is_none())
+                    .any(|i| board.edge(&(dir, i.0 + idx.0, i.1 + idx.1)).is_none())
             });
         if !task_match {
             return None;
@@ -174,7 +180,7 @@ impl BoardRule {
                 self.fences[dir]
                     .indexed_iter()
                     .filter(|x| x.1.is_some())
-                    .all(|(i, x)| *x == board.fences()[dir][add_idx(i, idx)])
+                    .all(|(i, x)| x == board.edge(&(dir, i.0 + idx.0, i.1 + idx.1)))
             })
         {
             log::trace!(

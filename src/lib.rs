@@ -25,14 +25,12 @@ pub fn game(b: &mut Board, sol_file: &str) -> Result<()> {
         b.cols(),
         b.task()
             .iter()
-            .map(|t| char::from(t.clone()))
+            .map(|x| x.map_or(' ', char::from))
             .collect::<String>()
     )];
     if let Some(won) = b.result() {
         if won {
-            println!(
-                "You completed the puzzle.\nCheckout your moves at `{sol_file}`!!!"
-            );
+            println!("You completed the puzzle.\nCheckout your moves at `{sol_file}`!!!");
             moves.push(b.solution());
             std::fs::write(sol_file, moves.join("\n"))?;
             exit(0);
@@ -100,9 +98,7 @@ pub fn game(b: &mut Board, sol_file: &str) -> Result<()> {
         }
         if let Some(won) = b.result() {
             if won {
-                println!(
-                    "You completed the puzzle.\nCheckout your moves at `{sol_file}`!!!"
-                );
+                println!("You completed the puzzle.\nCheckout your moves at `{sol_file}`!!!");
                 moves.push(b.solution());
                 std::fs::write(sol_file, moves.join("\n"))?;
                 exit(0);
