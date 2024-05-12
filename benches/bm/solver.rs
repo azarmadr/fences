@@ -1,6 +1,6 @@
 use fences::{
     solver::{block_closed_paths, rules, solve},
-    sub_idx, Board,
+    sub_idx, Board, *,
 };
 pub fn solve1(board: &mut Board) {
     let mut rules = rules::BoardRule::read_rules_from_yaml("assets/rules.yml");

@@ -1,14 +1,16 @@
 use crate::{
     add_idx,
-    board::{print_board, Fence, Fences, Task},
-    sub_idx, Board,
+    board::{print_board, Fence, Fences, Tasks},
+    sub_idx,
 };
 use grid::Grid;
 use serde::Deserialize;
 use serde_yaml;
 use std::collections::HashSet;
 
-#[derive(Debug, Clone)]
+use super::FencesSolver;
+
+#[derive(Debug, Clone, Hash)]
 pub enum TaskType {
     Corner(usize),
     Edge(usize),
@@ -17,7 +19,7 @@ pub enum TaskType {
 
 #[derive(Debug, Clone)]
 pub struct BoardRule {
-    pub task: Task,
+    pub task: Tasks,
     pub(crate) variant: TaskType,
     pub(crate) fences: Fences,
     pub(crate) solution: Fences,
@@ -55,7 +57,7 @@ impl<'de> Deserialize<'de> for BoardRule {
             )
         }
         let cols = task.lines().last().unwrap().chars().count();
-        let task: Task = Grid::from_vec(
+        let task: Tasks = Grid::from_vec(
             task.replace('\n', "")
                 .chars()
                 .map(|x| x.to_string().parse().ok())
@@ -144,9 +146,11 @@ impl BoardRule {
         }
         ret
     }
-    pub fn apply_at(&self, board: &mut Board, idx: (usize, usize)) -> Option<bool> {
+    pub fn apply_at(&self, board: &mut impl FencesSolver, idx: (usize, usize)) -> Option<bool> {
         let size = self.task.size();
-        if board.cols() < size.1 || board.rows() < size.0 { return None }
+        if board.cols() < size.1 || board.rows() < size.0 {
+            return None;
+        }
         let bounds = sub_idx(board.size(), size);
         if idx.0 > bounds.0
             || idx.1 > bounds.1
@@ -164,12 +168,12 @@ impl BoardRule {
             .task
             .indexed_iter()
             .filter(|x| x.1.is_some())
-            .all(|(i, x)| *x == board.task()[add_idx(i, idx)])
+            .all(|(i, x)| *x == board.tasks()[add_idx(i, idx)])
             && [0usize, 1].iter().any(|&dir| {
                 self.solution[dir]
                     .indexed_iter()
                     .filter_map(|x| x.1.map(|_| x.0))
-                    .any(|i| board.edge(&(dir, i.0 + idx.0, i.1 + idx.1)).is_none())
+                    .any(|i| board.edge(dir, add_idx(i, idx)).is_none())
             });
         if !task_match {
             return None;
@@ -180,21 +184,21 @@ impl BoardRule {
                 self.fences[dir]
                     .indexed_iter()
                     .filter(|x| x.1.is_some())
-                    .all(|(i, x)| x == board.edge(&(dir, i.0 + idx.0, i.1 + idx.1)))
+                    .all(|(i, x)| x == board.edge(dir, add_idx(i, idx)))
             })
         {
             log::trace!(
                 "match at idx: {idx:?} size: {size:?} bounds: {bounds:?} {:?}",
                 self.task
                     .indexed_iter()
-                    .map(|(i, _)| board.task()[add_idx(i, idx)].clone())
+                    .map(|(i, _)| board.tasks()[add_idx(i, idx)].clone())
                     .collect::<Vec<_>>()
             );
             for dir in [0, 1] {
                 self.solution[dir]
                     .indexed_iter()
                     .filter_map(|x| x.1.map(|v| (x.0, v)))
-                    .for_each(|(i, x)| board.play(dir, add_idx(i, idx), x, &format!("{self}")))
+                    .for_each(|(i, x)| board.play(dir, add_idx(i, idx), x, format!("{self}")))
             }
             Some(false)
         } else {

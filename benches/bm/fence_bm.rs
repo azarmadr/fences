@@ -1,11 +1,11 @@
-use fences::board::*;
+use fences::{board::*, solver::*, *};
 use grid::Grid;
 use std::fmt;
 
 #[derive(Debug)]
 pub struct Board1 {
     fences: Vec<Fence>,
-    task: Task,
+    task: Tasks,
     moves: Vec<Move>,
 }
 impl fmt::Display for Board1 {
@@ -45,16 +45,24 @@ impl fmt::Display for Board1 {
         Ok(())
     }
 }
-impl Board1 {
-    pub fn set_solution(&mut self, solution: &str) {
+impl BoardGeom for Board1 {
+    fn size(&self) -> (usize, usize) {
+        self.task.size()
+    }
+    fn rotate(&mut self) {
+        unimplemented!()
+    }
+}
+impl FencesSolver for Board1 {
+    fn set_solution(&mut self, solution: &str) {
         self.fences
             .iter_mut()
             .zip(solution.chars())
             .for_each(|(f, v)| *f = v.try_into().unwrap());
         log::info!("set_solution\n{self}");
     }
-    pub fn play(&mut self, direction: usize, idx: (usize, usize), value: bool, name: &str) {
-        let e = self.e2id(&direction, &idx);
+    fn play(&mut self, direction: usize, idx: (usize, usize), value: bool, name: String) {
+        let e = self.e2id(direction, idx);
         if let Some(curr) = *self.fences[e] {
             if curr == value {
                 log::trace!("Trying to overwrite an existing fence at [{direction}][{idx:?}]");
@@ -68,23 +76,46 @@ impl Board1 {
             direction,
             idx,
             value,
-            name: name.into(),
+            name,
         };
         log::trace!("{:?}\n{}{self}", (m.direction, m.idx, m.value), m.name);
         self.moves.push(m);
     }
+    fn tasks(&self) -> &Tasks {
+        &self.task
+    }
+    fn edge(&self, dir: usize, idx: Idx) -> &Fence {
+        let id = self.e2id(dir, idx);
+        &self.fences[id]
+    }
+    fn task(&self, idx: Idx) -> Task {
+        self.task[idx]
+    }
+    fn fences_iter(&self) -> impl Iterator<Item = (Edge, &Fence)> {
+        self.fences
+            .iter()
+            .enumerate()
+            .map(|(id, v)| (self.id2e(id), v))
+    }
+}
+impl Board1 {
     #[inline]
-    pub fn edge(&self, e: &Edge) -> &Fence {
-        let e = self.e2id(&e.0, &(e.1, e.2));
-        &self.fences[e]
+    fn id2e(&self, id: usize) -> Edge {
+        let b = self.cols() * (self.rows() + 1);
+        let c = self.cols();
+        if id < b {
+            (0, id / c, id % c)
+        } else {
+            let id = id - b;
+            (1, id / (c + 1), id % (c + 1))
+        }
     }
     #[inline]
-    fn e2id(&self, dir: &usize, idx: &(usize, usize)) -> usize {
-        let b = self.task.cols() * (self.task.rows() + 1);
+    fn e2id(&self, dir: usize, idx: (usize, usize)) -> usize {
         let c = self.task.cols();
         match dir {
-            0 => c * idx.1 + idx.0,
-            1 => b + (c + 1) * idx.1 + idx.0,
+            0 => c * idx.0 + idx.1,
+            1 => self.task.cols() * (self.task.rows() + 1) + (c + 1) * idx.0 + idx.1,
             _ => unreachable!(),
         }
     }
@@ -96,15 +127,14 @@ impl core::str::FromStr for Board1 {
             let mut mat = s.lines();
             let mut head = mat.next().expect("Header missing").split('#');
             let cols: usize = head.next().unwrap().parse().unwrap();
-            let task =
-                Task::from_vec(
+            let task = Tasks::from_vec(
                 head.next()
                     .unwrap()
                     .chars()
                     .map(|x| x.to_string().parse().ok())
                     .collect(),
                 cols,
-);
+            );
             let mut fences = vec![];
             fences.resize_with(
                 2 * task.rows() * task.cols() + task.rows() + task.cols(),
@@ -129,7 +159,7 @@ impl core::str::FromStr for Board1 {
                         "n" | "x" => false,
                         _ => unreachable!("Invalid value"),
                     };
-                    board.play(dir, (row, col), val, "");
+                    board.play(dir, (row, col), val, "".to_string());
                 } else {
                     board.set_solution(l)
                 }
@@ -138,14 +168,13 @@ impl core::str::FromStr for Board1 {
         } else {
             let mat: Vec<_> = s.lines().collect();
             assert!(mat.iter().all(|l| l.len() == mat.last().unwrap().len()));
-            let task =
-                Task::from_vec(
+            let task = Tasks::from_vec(
                 mat.join("")
                     .chars()
                     .map(|x| x.to_string().parse().ok())
                     .collect(),
                 mat[0].len(),
-);
+            );
             let mut fences = vec![];
             fences.resize_with(
                 2 * task.rows() * task.cols() + task.rows() + task.cols(),
@@ -184,10 +213,10 @@ macro_rules! b_solver {
     ($a:ident, $b:ident) => {
         #[divan::bench(consts = [2, 5, 4])]
         fn $a<const N: usize>() {
-            let b = &mut match N {
+            let b: &mut $b = &mut match N {
                 2 => "2#33",
+                4 => "4#1  0    1 21 23 ",
                 5 => "5#         2  3331 0 1 3  3",
-                4 => "4#1  0    1 21 23",
                 _ => unreachable!(),
             }
             .parse()
@@ -197,7 +226,7 @@ macro_rules! b_solver {
     };
 }
 
-b_parse! {b_parse, Board}
-b_parse! {b1_parse, Board1}
-b_solver! {b_solver, Board}
-b_solver! {b1_solver, Board1}
+b_parse! {parse_b, Board}
+b_parse! {parse_b1, Board1}
+b_solver! {solver_b, Board}
+b_solver! {solver_b1, Board1}

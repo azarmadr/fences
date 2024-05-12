@@ -3,7 +3,10 @@ pub mod board;
 pub use crate::board::Board;
 pub mod solver;
 use anyhow::Result;
+pub use solver::FencesSolver;
 use std::{io, process::exit};
+pub mod geom;
+pub use geom::BoardGeom;
 
 pub fn add_idx(a: (usize, usize), b: (usize, usize)) -> (usize, usize) {
     (a.0 + b.0, a.1 + b.1)
@@ -23,7 +26,7 @@ pub fn game(b: &mut Board, sol_file: &str) -> Result<()> {
     let mut moves = vec![format!(
         "{}#{}",
         b.cols(),
-        b.task()
+        b.tasks()
             .iter()
             .map(|x| x.map_or(' ', char::from))
             .collect::<String>()
@@ -86,7 +89,7 @@ pub fn game(b: &mut Board, sol_file: &str) -> Result<()> {
                 };
                 cp.push(b.moves().len());
                 moves.push(input.clone().trim().to_string());
-                b.play(f, (row, col), val, &format!("player move {i}"));
+                b.play(f, (row, col), val, format!("player move {i}"));
                 println!("Move {i}:\n{b}");
                 solver::solve(b);
                 println!("Solver {i}.\n{b}");

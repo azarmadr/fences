@@ -1,9 +1,9 @@
-use crate::{board::*, Board};
+use crate::{board::*, geom::BoardGeom};
 use grid::Grid;
 use rules::TaskType;
 use serde::Deserialize;
 use serde_yaml;
-use std::collections::{HashMap};
+use std::collections::{HashMap, VecDeque};
 pub mod rules;
 
 pub type Rules = Vec<(Vec<Fence>, Vec<Fence>, TaskType)>;
@@ -39,7 +39,7 @@ impl<'de> Deserialize<'de> for BoardRules {
         println!("{helper:?}");
         let mut ret = HashMap::from([]);
         for (k, v) in helper.0 {
-            let task: Task = k
+            let task: Tasks = k
                 .lines()
                 .map(|l| {
                     l.chars()
@@ -73,10 +73,10 @@ impl<'de> Deserialize<'de> for BoardRules {
     }
 }
 
-pub fn solve(board: &mut Board) {
+pub fn solve(board: &mut impl FencesSolver) {
     let rules = rules::BoardRule::read_rules_from_yaml("assets/rules.yml");
     rules.iter().for_each(|r| log::trace!("\n{r}"));
-    let keys: Vec<_> = board.task().indexed_iter().map(|x| x.0).collect();
+    let keys: Vec<_> = board.tasks().indexed_iter().map(|x| x.0).collect();
     let mut hm: HashMap<_, _> = keys
         .iter()
         .map(|&k| (k, (0..rules.len()).collect::<Vec<_>>()))
@@ -108,9 +108,9 @@ pub fn solve(board: &mut Board) {
     }
 }
 
-pub fn block_closed_paths(board: &mut Board) -> bool {
+pub fn block_closed_paths(board: &mut impl FencesSolver) -> bool {
     let mut changed = false;
-    let paths = get_paths(board.fences());
+    let paths = board.paths();
     if paths.len() > 1 {
         paths.iter().for_each(|p| {
             if p.len() < 3 {
@@ -131,8 +131,8 @@ pub fn block_closed_paths(board: &mut Board) -> bool {
                         [(1, (f.1 + l.1) / 2, min), (0, f.1, min), (0, f.1 + 1, min)]
                     };
                     possible_edges.iter().for_each(|e| {
-                        if board.edge(e).is_none() {
-                            board.play(e.0, (e.1, e.2), false, "open closed box");
+                        if board.edge(e.0, (e.1, e.2)).is_none() {
+                            board.play(e.0, (e.1, e.2), false, "open closed box".to_string());
                             changed = true
                         }
                     })
@@ -148,10 +148,10 @@ pub fn block_closed_paths(board: &mut Board) -> bool {
                             if !p.contains(&c)
                                 && are_linked(&f, &c)
                                 && are_linked(l, &c)
-                                && board.edge(&c).is_none()
+                                && board.edge(c.0, (c.1, c.2)).is_none()
                             {
                                 log::info!("{c:?}");
-                                board.play(x, (y, z), false, "open closed box");
+                                board.play(x, (y, z), false, "open closed box".to_string());
                                 changed = true
                             }
                         }
@@ -175,4 +175,61 @@ fn sorted_tuples(a: Edge, b: Edge) -> (Edge, Edge) {
         std::mem::swap(&mut res.0 .2, &mut res.1 .2)
     };
     res
+}
+
+pub type Edge = (usize, usize, usize);
+pub type Idx = (usize, usize);
+pub trait FencesSolver: BoardGeom {
+    fn set_solution(&mut self, solution: &str);
+    fn fences_iter(&self) -> impl Iterator<Item = (Edge, &Fence)>;
+    fn tasks(&self) -> &Tasks;
+    fn task(&self, idx: Idx) -> Task;
+    fn edge(&self, dir: usize, idx: Idx) -> &Fence;
+    fn play(&mut self, dir: usize, idx: Idx, val: bool, id: String);
+    fn paths(&self) -> Vec<Vec<Edge>> {
+        let mut dashes: Vec<_> = self
+            .fences_iter()
+            .filter_map(|(e, v)| if v.is_some_and(|x| x) { Some(e) } else { None })
+            .collect();
+        #[cfg(test)]
+        println!("Dashes:{dashes:?}",);
+        let mut ret = vec![];
+        let mut row = VecDeque::new();
+        while !dashes.is_empty() {
+            if row.is_empty() {
+                row.push_back(dashes.pop().unwrap());
+            }
+            let mut row_changed = false;
+            if let Some(index) = dashes
+                .iter()
+                .position(|l| are_linked(l, row.front().unwrap()))
+            {
+                row.push_front(dashes.swap_remove(index));
+                row_changed = true;
+            }
+            if let Some(index) = dashes
+                .iter()
+                .position(|l| are_linked(l, row.back().unwrap()))
+            {
+                row.push_back(dashes.swap_remove(index));
+                row_changed = true;
+            }
+            if !row_changed || dashes.is_empty() {
+                row.make_contiguous();
+                ret.push(row.as_slices().0.to_vec());
+                row.clear();
+            }
+            #[cfg(test)]
+            println!("Row: {row:?}\nDashes: {dashes:?}",);
+        }
+        #[cfg(test)]
+        println!(
+            "Ret:\n{}",
+            ret.iter()
+                .map(|x| format!("{x:?}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+        ret
+    }
 }
