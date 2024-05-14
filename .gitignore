@@ -3,3 +3,4 @@
 # assets
 moves*.txt
 Cargo.lock
+puzzle/**

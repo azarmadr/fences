@@ -34,7 +34,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Board {
     fences: Fences,
-    task: Tasks,
+    tasks: Tasks,
     moves: Vec<Move>,
 }
 
@@ -151,9 +151,9 @@ impl fmt::Display for Board {
         write!(
             f,
             "      {}\n",
-            (0..self.task.cols()).fold("".to_string(), |acc, x| format!("{acc}{x:2}"))
+            (0..self.tasks.cols()).fold("".to_string(), |acc, x| format!("{acc}{x:2}"))
         )?;
-        for (i, x) in print_board(&self.task, &self.fences, true)
+        for (i, x) in print_board(&self.tasks, &self.fences, true)
             .lines()
             .enumerate()
         {
@@ -170,7 +170,7 @@ impl fmt::Display for Board {
         write!(
             f,
             "      {}\n",
-            (0..self.task.cols()).fold("".to_string(), |acc, x| format!("{acc}{x:2}"))
+            (0..self.tasks.cols()).fold("".to_string(), |acc, x| format!("{acc}{x:2}"))
         )?;
         Ok(())
     }
@@ -178,7 +178,7 @@ impl fmt::Display for Board {
 
 impl BoardGeom for Board {
     fn size(&self) -> (usize, usize) {
-        self.task.size()
+        self.tasks.size()
     }
     fn rotate(&mut self) {
         unimplemented!()
@@ -199,9 +199,8 @@ impl FencesSolver for Board {
             if curr == value {
                 log::trace!("Trying to overwrite an existing fence at [{direction}][{idx:?}]");
                 return;
-            } else {
-                log::warn!("Overwriting an existing fence {curr} with {value} by {name}")
             }
+            log::warn!("Overwriting an existing fence {curr} with {value} by {name}")
         }
         *self.fences[direction][idx] = Some(value);
         let m = Move {
@@ -213,12 +212,11 @@ impl FencesSolver for Board {
         log::trace!("{:?}\n{}{self}", (m.direction, m.idx, m.value), m.name);
         self.moves.push(m);
     }
-    //fn fences(&self) -> &Fences { &self.fences }
-    fn tasks(&self) -> &Tasks {
-        &self.task
+    fn tasks_iter(&self) -> impl Iterator<Item = (Idx, &Task)> {
+        self.tasks.indexed_iter()
     }
-    fn task(&self, idx: Idx) -> Task {
-        self.task[idx]
+    fn task(&self, idx: Idx) -> &Task {
+        &self.tasks[idx]
     }
     fn edge(&self, dir: usize, idx: Idx) -> &Fence {
         &self.fences[dir][idx]
@@ -310,7 +308,7 @@ impl Board {
                 task.incr(self.fences[1][(row, col + 1)].0);
                 #[cfg(test)]
                 println!("Task at {:?} -> {task:?}", (row, col));
-                if self.task[(row, col)]
+                if self.tasks[(row, col)]
                     .is_some_and(|x| task.dashes as u8 > x || task.xs as u8 > 4u8 - x)
                 {
                     return Some(false);
@@ -318,7 +316,7 @@ impl Board {
             }
         }
 
-        if self.task.indexed_iter().all(|((row, col), val)| {
+        if self.tasks.indexed_iter().all(|((row, col), val)| {
             if val.is_none() {
                 return true;
             }
@@ -329,7 +327,7 @@ impl Board {
             task.incr(self.fences[1][(row, col + 1)].0);
             #[cfg(test)]
             println!("Task at {:?} -> {task:?}", (row, col));
-            self.task[(row, col)].is_some_and(|x| task.dashes as u8 == x)
+            self.tasks[(row, col)].is_some_and(|x| task.dashes as u8 == x)
         }) && has_one_path_and_is_circular(&self.fences)
         {
             return Some(true);
@@ -444,7 +442,7 @@ impl core::str::FromStr for Board {
                     Grid::<Fence>::new(task.rows() + 1, task.cols()),
                     Grid::<Fence>::new(task.rows(), task.cols() + 1),
                 ],
-                task,
+                tasks: task,
                 moves: vec![],
             };
             for l in mat {
@@ -482,7 +480,7 @@ impl core::str::FromStr for Board {
                     Grid::<Fence>::new(task.rows() + 1, task.cols()),
                     Grid::<Fence>::new(task.rows(), task.cols() + 1),
                 ],
-                task,
+                tasks: task,
                 moves: vec![],
             };
 

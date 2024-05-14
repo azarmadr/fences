@@ -168,7 +168,7 @@ impl BoardRule {
             .task
             .indexed_iter()
             .filter(|x| x.1.is_some())
-            .all(|(i, x)| *x == board.tasks()[add_idx(i, idx)])
+            .all(|(i, x)| x == board.task(add_idx(i, idx)))
             && [0usize, 1].iter().any(|&dir| {
                 self.solution[dir]
                     .indexed_iter()
@@ -191,7 +191,7 @@ impl BoardRule {
                 "match at idx: {idx:?} size: {size:?} bounds: {bounds:?} {:?}",
                 self.task
                     .indexed_iter()
-                    .map(|(i, _)| board.tasks()[add_idx(i, idx)].clone())
+                    .map(|(i, _)| board.task(add_idx(i, idx)).clone())
                     .collect::<Vec<_>>()
             );
             for dir in [0, 1] {

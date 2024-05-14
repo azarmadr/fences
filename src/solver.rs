@@ -9,11 +9,14 @@ pub mod rules;
 pub type Rules = Vec<(Vec<Fence>, Vec<Fence>, TaskType)>;
 
 #[derive(Debug)]
-pub struct BoardRules(pub HashMap<Grid<Option<u8>>, Rules>);
+pub struct BoardRules(pub HashMap<Grid<Task>, Rules>);
 impl BoardRules {
     pub fn new(file: &str) -> Self {
         let f = std::fs::File::open(file).expect("Couldn't open file");
         serde_yaml::from_reader(f).expect("Couldn't obtain rules")
+    }
+    fn add_rule(&mut self, task: &Tasks, fences: &Fences, solution: &Fences, task_type: TaskType) {
+        unimplemented!()
     }
 }
 
@@ -59,6 +62,12 @@ impl<'de> Deserialize<'de> for BoardRules {
                     .chars()
                     .filter_map(|x| x.try_into().ok())
                     .collect();
+                if r.corner && r.edge {
+                    unreachable!(
+                        r"rule can be either `corner` or `edge`, or neither.
+                         Please use any one of them or none of them"
+                    )
+                }
                 let variant = if r.corner {
                     TaskType::Corner(0)
                 } else if r.edge {
@@ -76,7 +85,7 @@ impl<'de> Deserialize<'de> for BoardRules {
 pub fn solve(board: &mut impl FencesSolver) {
     let rules = rules::BoardRule::read_rules_from_yaml("assets/rules.yml");
     rules.iter().for_each(|r| log::trace!("\n{r}"));
-    let keys: Vec<_> = board.tasks().indexed_iter().map(|x| x.0).collect();
+    let keys: Vec<_> = board.tasks_iter().map(|x| x.0).collect();
     let mut hm: HashMap<_, _> = keys
         .iter()
         .map(|&k| (k, (0..rules.len()).collect::<Vec<_>>()))
@@ -182,8 +191,8 @@ pub type Idx = (usize, usize);
 pub trait FencesSolver: BoardGeom {
     fn set_solution(&mut self, solution: &str);
     fn fences_iter(&self) -> impl Iterator<Item = (Edge, &Fence)>;
-    fn tasks(&self) -> &Tasks;
-    fn task(&self, idx: Idx) -> Task;
+    fn tasks_iter(&self) -> impl Iterator<Item = (Idx, &Task)>;
+    fn task(&self, idx: Idx) -> &Task;
     fn edge(&self, dir: usize, idx: Idx) -> &Fence;
     fn play(&mut self, dir: usize, idx: Idx, val: bool, id: String);
     fn paths(&self) -> Vec<Vec<Edge>> {

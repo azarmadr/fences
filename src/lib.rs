@@ -26,9 +26,8 @@ pub fn game(b: &mut Board, sol_file: &str) -> Result<()> {
     let mut moves = vec![format!(
         "{}#{}",
         b.cols(),
-        b.tasks()
-            .iter()
-            .map(|x| x.map_or(' ', char::from))
+        b.tasks_iter()
+            .map(|x| x.1.map_or(' ', char::from))
             .collect::<String>()
     )];
     if let Some(won) = b.result() {
