@@ -18,7 +18,7 @@ const CROSS: char = '×';
 
 mod items;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Move {
     pub direction: usize,
     pub idx: (usize, usize),
@@ -31,7 +31,7 @@ use crate::{
     geom::BoardGeom,
     solver::{FencesSolver, Idx},
 };
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Board {
     fences: Fences,
     tasks: Tasks,

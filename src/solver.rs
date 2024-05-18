@@ -15,7 +15,13 @@ impl BoardRules {
         let f = std::fs::File::open(file).expect("Couldn't open file");
         serde_yaml::from_reader(f).expect("Couldn't obtain rules")
     }
-    fn add_rule(&mut self, task: &Tasks, fences: &Fences, solution: &Fences, task_type: TaskType) {
+    fn _add_rule(
+        &mut self,
+        _task: &Tasks,
+        _fences: &Fences,
+        _solution: &Fences,
+        _task_type: TaskType,
+    ) {
         unimplemented!()
     }
 }
