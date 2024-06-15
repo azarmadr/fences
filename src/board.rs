@@ -134,7 +134,7 @@ pub fn print_board(task: &Tasks, fences: &Fences, color: bool) -> String {
             f += &format!(
                 "{}{}",
                 get_edge(1, row, col),
-                task[(row, col)].map_or(' ', char::from)
+                task[(row, col)].map_or(" ".to_string(), |x| x.to_string())
             );
         }
         f += &format!("{}\n", get_edge(1, row, cols),);
@@ -171,8 +171,7 @@ impl fmt::Display for Board {
             f,
             "      {}\n",
             (0..self.tasks.cols()).fold("".to_string(), |acc, x| format!("{acc}{x:2}"))
-        )?;
-        Ok(())
+        )
     }
 }
 
@@ -425,6 +424,9 @@ pub fn get_paths(fences: &Fences) -> Vec<Vec<(usize, usize, usize)>> {
 impl core::str::FromStr for Board {
     type Err = &'static str;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.is_empty() {
+            return Err("Cannot Parse Puzzle from empty string");
+        }
         if s.contains('#') {
             let mut mat = s.lines();
             let mut head = mat.next().expect("Header missing").split('#');
@@ -468,19 +470,19 @@ impl core::str::FromStr for Board {
         } else {
             let mat: Vec<_> = s.lines().collect();
             assert!(mat.iter().all(|l| l.len() == mat.last().unwrap().len()));
-            let task = Tasks::from_vec(
+            let tasks = Tasks::from_vec(
                 mat.join("")
                     .chars()
-                    .map(|x| x.to_string().parse().ok())
+                    .map(|x| u8::from_str(&x.to_string()).ok())
                     .collect(),
                 mat[0].len(),
             );
             let board = Board {
                 fences: [
-                    Grid::<Fence>::new(task.rows() + 1, task.cols()),
-                    Grid::<Fence>::new(task.rows(), task.cols() + 1),
+                    Grid::<Fence>::new(tasks.rows() + 1, tasks.cols()),
+                    Grid::<Fence>::new(tasks.rows(), tasks.cols() + 1),
                 ],
-                tasks: task,
+                tasks,
                 moves: vec![],
             };
 
@@ -493,6 +495,10 @@ impl core::str::FromStr for Board {
 mod tests {
     use super::*;
     #[test]
+    fn check_board_parse() {
+         assert!("".parse::<Board>().is_err());
+    }
+    #[test]
     fn check_board_result() {
         for (board, result) in [
             ("2#32  ", None),
@@ -504,6 +510,16 @@ mod tests {
             ("3#4  \n..-..-..--", Some(false)),
             ("3#4  \n-.--.-----", Some(false)),
             ("3#4  \n-..-..--..", Some(true)),
+            (
+                "4#1  0    1 21 23 
+0 0 0 n
+1 3 2 y
+1 3 3 y
+0 2 0 n
+0 3 1 y
+nynnnnnnnnynnynnnnynnyynnnyynnnynynnnyyn",
+                Some(true),
+            ),
         ] {
             assert_eq!(board.parse::<Board>().unwrap().result(), result);
         }

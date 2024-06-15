@@ -27,7 +27,7 @@ pub fn game(b: &mut Board, sol_file: &str) -> Result<()> {
         "{}#{}",
         b.cols(),
         b.tasks_iter()
-            .map(|x| x.1.map_or(' ', char::from))
+            .map(|x| x.1.map_or(" ".to_string(),|x| x.to_string()))
             .collect::<String>()
     )];
     if let Some(won) = b.result() {
