@@ -1,7 +1,7 @@
 use crate::{
     add_idx,
-    board::{print_board, Fence, Fences, Tasks},
-    sub_idx,
+    board::{print_board, Fences, Tasks},
+    sub_idx, Fence,
 };
 use grid::Grid;
 use serde::Deserialize;
@@ -10,19 +10,41 @@ use std::collections::HashSet;
 
 use super::FencesSolver;
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum TaskType {
     Corner(usize),
     Edge(usize),
     None,
 }
+impl TaskType {
+    pub fn new(corner: bool, edge: bool) -> Self {
+        if corner && edge {
+            unreachable!(
+                r"rule can be either `corner` or `edge`, or neither.
+                         Please use any one of them or none of them"
+            )
+        }
+        if corner {
+            TaskType::Corner(0)
+        } else if edge {
+            TaskType::Edge(0)
+        } else {
+            TaskType::None
+        }
+    }
+    pub fn rotate(&mut self) {
+        if let TaskType::Corner(x) | TaskType::Edge(x) = self {
+            *x = (*x + 1) % 4
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct BoardRule {
     pub task: Tasks,
-    pub(crate) variant: TaskType,
-    pub(crate) fences: Fences,
-    pub(crate) solution: Fences,
+    pub variant: TaskType,
+    pub fences: Fences,
+    pub solution: Fences,
 }
 
 impl<'de> Deserialize<'de> for BoardRule {
@@ -50,12 +72,6 @@ impl<'de> Deserialize<'de> for BoardRule {
             edge,
         } = helper;
 
-        if corner && edge {
-            unreachable!(
-                r"rule can be either `corner` or `edge`, or neither.
-                         Please use any one of them or none of them"
-            )
-        }
         let cols = task.lines().last().unwrap().chars().count();
         let task: Tasks = Grid::from_vec(
             task.replace('\n', "")
@@ -76,18 +92,11 @@ impl<'de> Deserialize<'de> for BoardRule {
             Grid::from_vec(solution[0..boundary].to_vec(), task.cols()),
             Grid::from_vec(solution[boundary..].to_vec(), task.cols() + 1),
         ];
-        let variant = if corner {
-            TaskType::Corner(0)
-        } else if edge {
-            TaskType::Edge(0)
-        } else {
-            TaskType::None
-        };
         Ok(Self {
             task,
             fences,
             solution,
-            variant,
+            variant: TaskType::new(corner, edge),
         })
     }
 }

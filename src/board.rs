@@ -16,8 +16,6 @@ const BOX_VERTICAL_HORIZONTAL: char = '┼';
 const DOT: char = '∙';
 const CROSS: char = '×';
 
-mod items;
-
 #[derive(Debug, Clone)]
 pub struct Move {
     pub direction: usize,
@@ -25,7 +23,8 @@ pub struct Move {
     pub value: bool,
     pub name: String,
 }
-pub use items::Fence;
+
+use crate::Fence;
 
 use crate::{
     geom::BoardGeom,
@@ -496,7 +495,7 @@ mod tests {
     use super::*;
     #[test]
     fn check_board_parse() {
-         assert!("".parse::<Board>().is_err());
+        assert!("".parse::<Board>().is_err());
     }
     #[test]
     fn check_board_result() {

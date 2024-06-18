@@ -1,6 +1,7 @@
+use crate::BoardGeom;
 use std::fmt;
 
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct Fence(pub(crate) Option<bool>);
 
 impl TryFrom<char> for Fence {
@@ -50,3 +51,18 @@ macro_rules! deref_impls {
     };
 }
 deref_impls! {Fence, Option<bool>}
+
+struct Fences {
+    cols: usize,
+    rows: usize,
+    _fences: Vec<Fence>,
+}
+
+impl BoardGeom for Fences {
+    fn size(&self) -> (usize, usize) {
+        (self.rows, self.cols)
+    }
+    fn rotate(&mut self) {
+        unimplemented!()
+    }
+}

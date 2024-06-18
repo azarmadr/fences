@@ -7,6 +7,26 @@
     corner: true
   - solution: -...
     fences: .xxx
-"2\n3\n1":
-  - fences:   .... .. .. ..
-    solution: ..-. .. .. x.
+    mirror: true
+2:
+  - fences: --_..
+    solution: .._xx
+    mirror: true
+  - fences: .x_.x
+    solution: -._-.
+    mirror: true
+      # "2\n3\n1": # unsure if it was on edge
+      #   - fences:   .... .. .. ..
+      #     solution: ..-. .. .. x.
+      #     edge: true
+"2 \n  ":
+  - fences:   .. .. .. ... ...
+    solution: .- .. .. ... -..
+    corner: true
+3:
+  - solution: ...x
+    fences: ---.
+    mirror: true
+  - fences: ....
+    solution: -.-.
+    corner: true

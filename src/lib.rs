@@ -7,6 +7,9 @@ pub use solver::FencesSolver;
 use std::{io, process::exit};
 pub mod geom;
 pub use geom::BoardGeom;
+mod items;
+pub use items::*;
+pub mod rules;
 
 pub fn add_idx(a: (usize, usize), b: (usize, usize)) -> (usize, usize) {
     (a.0 + b.0, a.1 + b.1)
@@ -27,7 +30,7 @@ pub fn game(b: &mut Board, sol_file: &str) -> Result<()> {
         "{}#{}",
         b.cols(),
         b.tasks_iter()
-            .map(|x| x.1.map_or(" ".to_string(),|x| x.to_string()))
+            .map(|x| x.1.map_or(" ".to_string(), |x| x.to_string()))
             .collect::<String>()
     )];
     if let Some(won) = b.result() {

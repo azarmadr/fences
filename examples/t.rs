@@ -11,7 +11,6 @@ fn main() {
                 .collect::<Vec<_>>()
                 .join("\n")
         );
-        v.iter()
-            .for_each(|r| println!("- {:?}\n  {:?}\n  {:?}", r.0, r.1, r.2));
+        v.iter().for_each(|r| println!("- {}", r.print()));
     }
 }

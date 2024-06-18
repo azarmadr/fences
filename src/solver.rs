@@ -1,12 +1,77 @@
-use crate::{board::*, geom::BoardGeom};
+use crate::{board::*, geom::BoardGeom, *};
 use grid::Grid;
 use rules::TaskType;
 use serde::Deserialize;
 use serde_yaml;
-use std::collections::{HashMap, VecDeque};
-pub mod rules;
+use std::collections::{HashMap, HashSet, VecDeque};
 
-pub type Rules = Vec<(Vec<Fence>, Vec<Fence>, TaskType)>;
+pub type Rules = HashSet<Rule>;
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub struct Rule {
+    in_h: Grid<Fence>,
+    in_v: Grid<Fence>,
+    out_h: Grid<Fence>,
+    out_v: Grid<Fence>,
+    location: TaskType,
+}
+impl Rule {
+    fn new(
+        size: (usize, usize),
+        fences: Vec<Fence>,
+        solution: Vec<Fence>,
+        location: TaskType,
+    ) -> Self {
+        let boundary = (size.0 + 1) * size.1;
+        Self {
+            in_h: Grid::from_vec(fences[0..boundary].to_vec(), size.1),
+            in_v: Grid::from_vec(fences[boundary..].to_vec(), size.1 + 1),
+            out_h: Grid::from_vec(solution[0..boundary].to_vec(), size.1),
+            out_v: Grid::from_vec(solution[boundary..].to_vec(), size.1 + 1),
+            location,
+        }
+    }
+    fn rotate(&mut self) {
+        // println!("<{self:?}");
+        std::mem::swap(&mut self.in_h, &mut self.in_v);
+        std::mem::swap(&mut self.out_h, &mut self.out_v);
+        self.in_h.rotate_right();
+        self.in_v.rotate_right();
+        self.out_h.rotate_right();
+        self.out_v.rotate_right();
+
+        self.location.rotate();
+        // println!(">{self:?}");
+    }
+    fn reorder(&mut self) {
+        let cols = self.in_h.cols();
+        self.in_h = Grid::from_vec(self.in_h.clone().into_vec(), cols);
+        self.out_h = Grid::from_vec(self.out_h.clone().into_vec(), cols);
+        self.in_v = Grid::from_vec(self.in_v.clone().into_vec(), cols + 1);
+        self.out_v = Grid::from_vec(self.out_v.clone().into_vec(), cols + 1);
+    }
+    pub fn print(&self) -> String {
+        let f = |x: &Grid<Fence>| -> String {
+            x.iter_rows()
+                .map(|r| {
+                    r.map(|&c| char::from(c).to_string())
+                        .collect::<Vec<_>>()
+                        .join("")
+                })
+                .collect::<Vec<_>>()
+                .join("|")
+        };
+        format!(
+            "Rule {:?}
+  in_h: {} out_h: {}
+  in_v: {} out_v: {}",
+            self.location,
+            f(&self.in_h),
+            f(&self.out_h),
+            f(&self.in_v),
+            f(&self.out_v)
+        )
+    }
+}
 
 #[derive(Debug)]
 pub struct BoardRules(pub HashMap<Grid<Task>, Rules>);
@@ -15,14 +80,33 @@ impl BoardRules {
         let f = std::fs::File::open(file).expect("Couldn't open file");
         serde_yaml::from_reader(f).expect("Couldn't obtain rules")
     }
-    fn _add_rule(
+    fn add_rule(
         &mut self,
-        _task: &Tasks,
-        _fences: &Fences,
-        _solution: &Fences,
-        _task_type: TaskType,
+        clues: &Tasks,
+        fences: Vec<Fence>,
+        solution: Vec<Fence>,
+        task_type: TaskType,
     ) {
-        unimplemented!()
+        let clues = &mut clues.clone();
+        let rule = &mut Rule::new(clues.size(), fences, solution, task_type);
+
+        self.0.entry(clues.clone()).or_insert([].into());
+        let rules = self.0.get_mut(clues).unwrap();
+        rules.insert(rule.clone());
+
+        for i in 0..3 {
+            clues.rotate_right();
+            rule.rotate();
+            let mut clues = clues.clone();
+            let mut rule = rule.clone();
+            if i % 2 == 0 {
+                clues = Grid::from_vec(clues.clone().into_vec(), clues.cols());
+                rule.reorder();
+            }
+            self.0.entry(clues.clone()).or_insert([].into());
+            let rules = self.0.get_mut(&clues).unwrap();
+            rules.insert(rule.clone());
+        }
     }
 }
 
@@ -39,6 +123,8 @@ impl<'de> Deserialize<'de> for BoardRules {
             corner: bool,
             #[serde(default)]
             edge: bool,
+            #[serde(default)]
+            mirror: bool,
         }
 
         #[derive(Debug, Deserialize)]
@@ -46,9 +132,9 @@ impl<'de> Deserialize<'de> for BoardRules {
 
         let helper = Helper::deserialize(deserializer)?;
         println!("{helper:?}");
-        let mut ret = HashMap::from([]);
+        let mut ret = BoardRules(HashMap::from([]));
         for (k, v) in helper.0 {
-            let task: Tasks = k
+            let tasks: Tasks = k
                 .lines()
                 .map(|l| {
                     l.chars()
@@ -58,8 +144,6 @@ impl<'de> Deserialize<'de> for BoardRules {
                 .collect::<Vec<_>>()
                 .into();
 
-            ret.entry(task.clone()).or_insert(vec![]);
-            let rules = ret.get_mut(&task).unwrap();
             v.iter().for_each(|r| {
                 let fences: Vec<Fence> =
                     r.fences.chars().filter_map(|x| x.try_into().ok()).collect();
@@ -68,23 +152,13 @@ impl<'de> Deserialize<'de> for BoardRules {
                     .chars()
                     .filter_map(|x| x.try_into().ok())
                     .collect();
-                if r.corner && r.edge {
-                    unreachable!(
-                        r"rule can be either `corner` or `edge`, or neither.
-                         Please use any one of them or none of them"
-                    )
+                if r.mirror {
+                    ret.add_rule(&tasks, solution.clone(), fences.clone(), TaskType::new(r.corner, r.edge));
                 }
-                let variant = if r.corner {
-                    TaskType::Corner(0)
-                } else if r.edge {
-                    TaskType::Edge(0)
-                } else {
-                    TaskType::None
-                };
-                rules.push((fences, solution, variant));
+                ret.add_rule(&tasks, fences, solution, TaskType::new(r.corner, r.edge));
             });
         }
-        Ok(BoardRules(ret))
+        Ok(ret)
     }
 }
 
